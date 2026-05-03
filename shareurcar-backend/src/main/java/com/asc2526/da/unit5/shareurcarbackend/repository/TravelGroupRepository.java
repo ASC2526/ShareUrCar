@@ -1,0 +1,17 @@
+package com.asc2526.da.unit5.shareurcarbackend.repository;
+
+import com.asc2526.da.unit5.shareurcarbackend.model.TravelGroup;
+import org.springframework.data.jpa.repository.*;
+import org.springframework.data.repository.query.Param;
+
+import java.util.List;
+
+public interface TravelGroupRepository extends JpaRepository<TravelGroup, Integer> {
+
+    @Query("""
+        SELECT tg
+        FROM TravelGroup tg
+        WHERE tg.idRoute = :routeId
+    """)
+    List<TravelGroup> findByRouteId(@Param("routeId") Integer routeId);
+}

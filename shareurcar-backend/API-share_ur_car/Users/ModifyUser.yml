@@ -1,0 +1,24 @@
+info:
+  name: ModifyUser
+  type: http
+  seq: 1
+
+http:
+  method: PUT
+  url: http://localhost:8080/users/6
+  body:
+    type: json
+    data: |-
+      {
+        "firstname": "Lucas",
+        "lastname": "Updated",
+        "email": "alex2@test.com",
+        "password": "1234"
+      }
+  auth: inherit
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5

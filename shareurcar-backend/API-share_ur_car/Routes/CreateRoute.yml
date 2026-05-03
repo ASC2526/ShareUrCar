@@ -1,0 +1,28 @@
+info:
+  name: CreateRoute
+  type: http
+  seq: 5
+
+http:
+  method: POST
+  url: http://localhost:8080/routes
+  body:
+    type: json
+    data: |-
+      {
+        "id_driver": 1,
+        "origin": "Alicante",
+        "destination": "San Vicente",
+        "departure_time": "08:00:00",
+        "arrival_time": "08:30:00",
+        "days_of_week": "Lunes-Viernes",
+        "frequency": "semanal",
+        "available_seats": 3
+      }
+  auth: inherit
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5

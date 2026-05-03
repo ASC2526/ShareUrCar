@@ -1,0 +1,26 @@
+info:
+  name: ModifyRoute
+  type: http
+  seq: 4
+
+http:
+  method: PUT
+  url: http://localhost:8080/routes/3
+  body:
+    type: json
+    data: |-
+      {
+        "id_driver": 1,
+        "origin": "Alicante",
+        "destination": "Elche",
+        "departure_time": "09:00:00",
+        "arrival_time": "09:40:00",
+        "available_seats": 2
+      }
+  auth: inherit
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5
