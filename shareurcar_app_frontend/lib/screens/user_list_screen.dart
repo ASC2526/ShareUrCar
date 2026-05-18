@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import '../services/api_service.dart';
 
 class UserListScreen extends StatefulWidget {
+  const UserListScreen({super.key});
+
   @override
   _UserListScreenState createState() => _UserListScreenState();
 }

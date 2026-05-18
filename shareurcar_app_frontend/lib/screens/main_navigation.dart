@@ -4,7 +4,7 @@ import 'home_screen.dart';
 class MainNavigation extends StatefulWidget {
   final Map user;
 
-  const MainNavigation({required this.user});
+  const MainNavigation({super.key, required this.user});
 
   @override
   _MainNavigationState createState() => _MainNavigationState();

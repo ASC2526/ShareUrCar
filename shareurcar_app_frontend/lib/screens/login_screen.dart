@@ -4,6 +4,8 @@ import 'package:shareurcar_app_frontend/screens/register_screen.dart';
 import '../services/api_service.dart';
 
 class LoginScreen extends StatefulWidget {
+  const LoginScreen({super.key});
+
   @override
   _LoginScreenState createState() => _LoginScreenState();
 }
@@ -20,27 +22,26 @@ class _LoginScreenState extends State<LoginScreen> {
         passwordController.text.trim(),
       );
 
-      Navigator.push(
+      if (!mounted) return;
+
+      Navigator.pushReplacement( // Mejor pushReplacement para no poder volver al login con el botón de atrás
         context,
         MaterialPageRoute(builder: (_) => MainNavigation(user: user)),
       );
 
     } catch (e) {
+      if (!mounted) return; 
       showDialog(
         context: context,
         builder: (_) => AlertDialog(
           title: Text("Error"),
-          content: Text("Usuario no existe. Regístrate"),
+          content: Text("Credenciales incorrectas o error de conexión."),
           actions: [
             TextButton(
               onPressed: () {
                 Navigator.pop(context);
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(builder: (_) => RegisterScreen()),
-                );
               },
-              child: Text("Ir a registrarse"),
+              child: Text("Reintentar"),
             )
           ],
         ),

@@ -1,23 +1,51 @@
 import 'package:flutter/material.dart';
+import 'package:shareurcar_app_frontend/screens/create_route_screen.dart';
+import '../services/api_service.dart';
 
-class HomeScreen extends StatelessWidget {
+class HomeScreen extends StatefulWidget {
   final Map user;
 
-  const HomeScreen({Key? key, required this.user}) : super(key: key);
+  const HomeScreen({super.key, required this.user});
+
+  @override
+  State<HomeScreen> createState() => _HomeScreenState();
+}
+
+class _HomeScreenState extends State<HomeScreen> {
+  List dynamicRoutes = [];
+  bool isLoading = true;
+
+  @override
+  void initState() {
+    super.initState();
+    loadRoutes();
+  }
+
+  void loadRoutes() async {
+    try {
+      final routes = await ApiService.getRoutes();
+      if (!mounted) return;
+      setState(() {
+        dynamicRoutes = routes;
+        isLoading = false;
+      });
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        isLoading = false;
+      });
+      // Aquí snacback de error para poner más tarde
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
-
-    final List trips = [];
-
-    final hasTrips = trips.isNotEmpty; 
+    final hasTrips = dynamicRoutes.isNotEmpty;
 
     return Scaffold(
       backgroundColor: Colors.grey[100],
-
       body: Column(
         children: [
-
           // HEADER SUPERIOR
           Container(
             width: double.infinity,
@@ -35,7 +63,6 @@ class HomeScreen extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
@@ -44,9 +71,8 @@ class HomeScreen extends StatelessWidget {
                       children: [
                         Text("Bienvenido de nuevo,",
                             style: TextStyle(color: Colors.white70)),
-
                         Text(
-                          user['firstname'],
+                          widget.user['firstname'] ?? 'Usuario',
                           style: TextStyle(
                               color: Colors.white,
                               fontSize: 22,
@@ -54,24 +80,29 @@ class HomeScreen extends StatelessWidget {
                         ),
                       ],
                     ),
-
                     CircleAvatar(
                       backgroundColor: Colors.white24,
                       child: Icon(Icons.person, color: Colors.white),
                     )
                   ],
                 ),
-
                 SizedBox(height: 20),
-
                 Row(
                   children: [
                     Expanded(
-                      child: actionButton(
-                        "Crear ruta",
-                        Icons.add,
-                        Colors.lightBlueAccent,
-                      ),
+                      child: GestureDetector(
+                        onTap: () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(builder: (_) => CreateRouteScreen(user: widget.user)),
+                          );
+                        },
+                        child: actionButton(
+                          "Crear ruta",
+                           Icons.add,
+                         Colors.lightBlueAccent,
+                        ),
+                      )
                     ),
                     SizedBox(width: 10),
                     Expanded(
@@ -89,51 +120,51 @@ class HomeScreen extends StatelessWidget {
 
           SizedBox(height: 20),
 
-          // LISTA VIAJES
+          // LISTA VIAJES ACTIVOS
           Expanded(
             child: Padding(
               padding: EdgeInsets.symmetric(horizontal: 15),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
                       Text("Viajes activos",
                           style: TextStyle(
                               fontSize: 18, fontWeight: FontWeight.bold)),
-                      Text("Ver todos",
-                          style: TextStyle(color: Colors.blue)),
+                      Text("Ver todos", style: TextStyle(color: Colors.blue)),
                     ],
                   ),
-
                   SizedBox(height: 10),
-
-                  hasTrips
-                    ? Expanded(
-                        child: ListView.builder(
-                          itemCount: trips.length,
-                          itemBuilder: (context, index) {
-                            final trip = trips[index];
-
-                            return tripCard(
-                              trip['origin'],
-                              trip['date'],
-                              trip['driver'],
-                              "${trip['occupied']}/${trip['seats']}",
-                            );
-                          },
+                  
+                  // Mostrar loader mientras trae datos de Spring Boot
+                  if (isLoading)
+                    Expanded(child: Center(child: CircularProgressIndicator()))
+                  else if (hasTrips)
+                    Expanded(
+                      child: ListView.builder(
+                        itemCount: dynamicRoutes.length,
+                        itemBuilder: (context, index) {
+                          final route = dynamicRoutes[index];
+                          // Adaptamos los datos reales del backend al card
+                          return tripCard(
+                            "${route['origin']} - ${route['destination']}",
+                            route['departure_time'] ?? 'Hora no definida',
+                            "Plazas libres: ${route['available_seats']}",
+                          );
+                        },
+                      ),
+                    )
+                  else
+                    Expanded(
+                      child: Center(
+                        child: Text(
+                          "No hay viajes activos ahora mismo",
+                          style: TextStyle(color: Colors.grey),
                         ),
-                      )
-                    : Expanded(
-                        child: Center(
-                          child: Text(
-                            "No hay viajes activos",
-                            style: TextStyle(color: Colors.grey),
-                          ),
-                        ),
-                      )
+                      ),
+                    )
                 ],
               ),
             ),
@@ -143,7 +174,7 @@ class HomeScreen extends StatelessWidget {
     );
   }
 
-  // 🔘 BOTONES
+  // BOTONES
   Widget actionButton(String text, IconData icon, Color color) {
     return Container(
       padding: EdgeInsets.symmetric(vertical: 15),
@@ -161,21 +192,24 @@ class HomeScreen extends StatelessWidget {
     );
   }
 
-  // 🚗 CARD VIAJE
-  Widget tripCard(String title, String time, String driver, String seats) {
+  // CARD VIAJE
+  Widget tripCard(String title, String time, String seatsInfo) {
     return Card(
       margin: EdgeInsets.only(bottom: 10),
-      shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(15)),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
       child: ListTile(
-        leading: Icon(Icons.location_on, color: Colors.blue),
-        title: Text(title),
-        subtitle: Text(time),
+        leading: CircleAvatar(
+          backgroundColor: Colors.blue.shade50,
+          child: Icon(Icons.location_on, color: Colors.blue),
+        ),
+        title: Text(title, style: TextStyle(fontWeight: FontWeight.w600)),
+        subtitle: Text("Salida: $time"),
         trailing: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(Icons.people, size: 18),
-            Text(seats)
+            Icon(Icons.people, size: 18, color: Colors.grey.shade700),
+            SizedBox(height: 4),
+            Text(seatsInfo, style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold))
           ],
         ),
       ),

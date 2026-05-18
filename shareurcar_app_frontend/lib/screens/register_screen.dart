@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import '../services/api_service.dart';
 
 class RegisterScreen extends StatefulWidget {
+  const RegisterScreen({super.key});
+
   @override
   _RegisterScreenState createState() => _RegisterScreenState();
 }
@@ -17,7 +19,6 @@ class _RegisterScreenState extends State<RegisterScreen> {
   final confirmController = TextEditingController();
 
   void register() async {
-
     if (!_formKey.currentState!.validate()) return;
 
     if (passwordController.text != confirmController.text) {
@@ -26,13 +27,9 @@ class _RegisterScreenState extends State<RegisterScreen> {
     }
 
     try {
-
       final fullName = nameController.text.trim().split(" ");
-
       final firstname = fullName.first;
-      final lastname = fullName.length > 1
-          ? fullName.sublist(1).join(" ")
-          : "";
+      final lastname = fullName.length > 1 ? fullName.sublist(1).join(" ") : "";
 
       await ApiService.register({
         "firstname": firstname,
@@ -43,18 +40,22 @@ class _RegisterScreenState extends State<RegisterScreen> {
         "rating": 0
       });
 
+      if (!mounted) return; // ¡NUEVO!
+
       showDialog(
         context: context,
         builder: (_) => AlertDialog(
           title: Text("Éxito"),
           content: Text("Cuenta creada correctamente"),
         ),
-      );
-
-      Navigator.pop(context); // cerrar dialog
-      Navigator.pop(context); // volver a login
+      ).then((_) {
+        // Mejor usar el .then para cerrar todo de forma limpia cuando el usuario acepta el dialog
+        if (!mounted) return;
+        Navigator.pop(context); // Volver al login
+      });
 
     } catch (e) {
+      if (!mounted) return; // ¡NUEVO!
       showError(e.toString());
     }
   }
