@@ -89,27 +89,41 @@ class ApiService {
     }
   }
 
-  static Future<List<String>> getAddressSuggestions(String query) async {
-    if (query.trim().length < 3) return []; // No busca hasta que haya 3 letras
+  static Future<List<Map<String, dynamic>>> getAddressSuggestions(String query) async {
+    if (query.trim().length < 3) return [];
     
-    // Filtramos por país (es) para que priorice calles y centros de aquí
-    final url = Uri.parse(
-        "https://nominatim.openstreetmap.org/search?q=${Uri.encodeComponent(query)}&format=json&limit=5&countrycodes=es");
+    // forzamos la búsqueda en Alicante si el usuario no lo ha escrito
+    String searchQuery = query;
+    if (!query.toLowerCase().contains("alicante")) {
+      searchQuery = "$query, Alicante";
+    }
+
+    final url = Uri.parse("https://nominatim.openstreetmap.org/search?q=${Uri.encodeComponent(searchQuery)}&format=json&limit=5&addressdetails=1&countrycodes=es");
 
     try {
-      final response = await http.get(url, headers: {
-        'User-Agent': 'shareurcar_app_frontend' // OpenStreetMap exige un identificador
-      });
+final response = await http.get(url, headers: {
+  'User-Agent': 'ShareUrCarApp_Project/1.0' 
+});
 
       if (response.statusCode == 200) {
         final List data = json.decode(response.body);
-        // Mapeamos los resultados para quedarnos solo con el texto de la dirección
-        return data.map((item) => item['display_name'].toString()).toList();
+        return data.map((item) => {
+          "name": item['display_name'].toString(),
+          "lat": double.parse(item['lat']),
+          "lng": double.parse(item['lon']),
+        }).toList();
       }
     } catch (e) {
       print("Error en autocompletado: $e");
     }
     return [];
+  }
+
+  static Future<List<dynamic>> searchRoutes(double originLat, double originLng, double destLat, double destLng) async {
+    final url = Uri.parse("$baseUrl/routes/search?originLat=$originLat&originLng=$originLng&destLat=$destLat&destLng=$destLng");
+    final response = await http.get(url);
+    if (response.statusCode == 200) return json.decode(response.body);
+    throw Exception("Error al buscar las rutas");
   }
 
 }

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../services/api_service.dart';
+import 'dart:async';
 
 class CreateRouteScreen extends StatefulWidget {
   final Map user;
@@ -20,29 +21,66 @@ class _CreateRouteScreenState extends State<CreateRouteScreen> {
   final seatsController = TextEditingController();
   final pickupController = TextEditingController();
 
-  // Autocompletado
-  List<String> originSuggestions = [];
-  List<String> destinationSuggestions = [];
-  List<String> pickupSuggestions = [];
+  // AHORA SON LISTAS DE MAPAS
+  List<Map<String, dynamic>> originSuggestions = [];
+  List<Map<String, dynamic>> destinationSuggestions = [];
+  List<Map<String, dynamic>> pickupSuggestions = [];
 
-  // Puntos de recogida (Lista dinámica)
+  // COORDENADAS PARA LA BBDD
+  double? selectedOriginLat;
+  double? selectedOriginLng;
+  double? selectedDestLat;
+  double? selectedDestLng;
+
   List<String> puntosRecogida = [];
 
-  // Adaptado a tu BBDD (Puedes añadir más si lo cambias en el back)
   String frecuenciaSeleccionada = 'Puntual';
   final List<String> opcionesFrecuencia = ['Puntual', 'Diario', 'Semanal', 'Fines de semana'];
 
-  // Preferencias con Checkbox
   bool prefSinConversar = false;
   bool prefEquipaje = false;
   bool prefMusica = false;
   bool prefFumar = false;
 
   bool isLoading = false;
+  Timer? _debounce;
 
   void submitRoute() async {
     if (!_formKey.currentState!.validate()) return;
+    
+    if (selectedOriginLat == null || selectedDestLat == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text("Por favor, selecciona direcciones de la lista desplegable"), backgroundColor: Colors.orange),
+      );
+      return;
+    }
+
     setState(() => isLoading = true);
+
+    // si no pulsó ninguna sugerencia en el origen o destino, lo buscamos ahora
+    if (selectedOriginLat == null) {
+      final fallbackOrigen = await ApiService.getAddressSuggestions(originController.text);
+      if (fallbackOrigen.isNotEmpty) {
+        selectedOriginLat = fallbackOrigen[0]['lat'];
+        selectedOriginLng = fallbackOrigen[0]['lng'];
+      } else {
+        setState(() => isLoading = false);
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("No se encuentra el Origen exacto. Prueba sin el número de calle."), backgroundColor: Colors.orange));
+        return;
+      }
+    }
+
+    if (selectedDestLat == null) {
+      final fallbackDestino = await ApiService.getAddressSuggestions(destinationController.text);
+      if (fallbackDestino.isNotEmpty) {
+        selectedDestLat = fallbackDestino[0]['lat'];
+        selectedDestLng = fallbackDestino[0]['lng'];
+      } else {
+        setState(() => isLoading = false);
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("No se encuentra el Destino exacto en el mapa."), backgroundColor: Colors.orange));
+        return;
+      }
+    }
 
     try {
       List<String> prefsActivas = [];
@@ -51,16 +89,18 @@ class _CreateRouteScreenState extends State<CreateRouteScreen> {
       if (prefMusica) prefsActivas.add("Música");
       if (prefFumar) prefsActivas.add("Fumar permitido");
 
-      // Mandamos la petición al backend de Spring Boot
+      // Mandamos la petición con las 4 coordenadas nuevas
       await ApiService.createRoute({
         "idDriver": widget.user['idUser'],
         "origin": originController.text.trim(),
+        "originLat": selectedOriginLat,
+        "originLng": selectedOriginLng,
         "destination": destinationController.text.trim(),
+        "destinationLat": selectedDestLat,
+        "destinationLng": selectedDestLng,
         "departure_time": "${timeController.text.trim()}:00",
         "frequency": frecuenciaSeleccionada,
         "available_seats": int.parse(seatsController.text.trim()),
-        // para guardar la lista de puntosRecogida o prefsActivas, 
-        // haay que añadir esos campos a la entidad Route en Spring Boot.
       });
 
       if (!mounted) return;
@@ -82,7 +122,6 @@ class _CreateRouteScreenState extends State<CreateRouteScreen> {
     }
   }
 
-  // --- POPUP PARA REGISTRAR COCHE ---
   void _showRegisterCarDialog() {
     final plateController = TextEditingController();
     final modelController = TextEditingController();
@@ -103,26 +142,13 @@ class _CreateRouteScreenState extends State<CreateRouteScreen> {
         content: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Text(
-              "Para publicar una ruta, primero debes registrar tu vehículo en el sistema.",
-              style: TextStyle(fontSize: 13, color: Colors.grey.shade700),
-            ),
+            Text("Para publicar una ruta, primero debes registrar tu vehículo en el sistema.", style: TextStyle(fontSize: 13, color: Colors.grey.shade700)),
             SizedBox(height: 15),
-            TextFormField(
-              controller: plateController,
-              decoration: _inputDeco("Matrícula (Ej: 1234ABC)", null),
-            ),
+            TextFormField(controller: plateController, decoration: _inputDeco("Matrícula (Ej: 1234ABC)", null)),
             SizedBox(height: 10),
-            TextFormField(
-              controller: modelController,
-              decoration: _inputDeco("Modelo (Ej: Seat Ibiza)", null),
-            ),
+            TextFormField(controller: modelController, decoration: _inputDeco("Modelo (Ej: Seat Ibiza)", null)),
             SizedBox(height: 10),
-            TextFormField(
-              controller: carSeatsController,
-              decoration: _inputDeco("Plazas máximas", null),
-              keyboardType: TextInputType.number,
-            ),
+            TextFormField(controller: carSeatsController, decoration: _inputDeco("Plazas máximas", null), keyboardType: TextInputType.number),
           ],
         ),
         actions: [
@@ -131,10 +157,7 @@ class _CreateRouteScreenState extends State<CreateRouteScreen> {
             child: Text("Cancelar", style: TextStyle(color: Colors.grey.shade600)),
           ),
           ElevatedButton(
-            style: ElevatedButton.styleFrom(
-              backgroundColor: Color(0xFF49A09D),
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-            ),
+            style: ElevatedButton.styleFrom(backgroundColor: Color(0xFF49A09D), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8))),
             onPressed: () async {
               try {
                 await ApiService.registerDriver({
@@ -143,18 +166,12 @@ class _CreateRouteScreenState extends State<CreateRouteScreen> {
                   "carModel": modelController.text.trim(),
                   "maxSeats": int.parse(carSeatsController.text.trim()),
                 });
-
                 if (!mounted) return;
-                Navigator.pop(context); // Cerramos el popup
-
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(content: Text("¡Coche registrado! Dale a Publicar Ruta otra vez."), backgroundColor: Colors.green),
-                );
+                Navigator.pop(context);
+                ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("¡Coche registrado! Dale a Publicar Ruta otra vez."), backgroundColor: Colors.green));
               } catch (ex) {
                 if (!mounted) return;
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(content: Text(ex.toString()), backgroundColor: Colors.red),
-                );
+                ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(ex.toString()), backgroundColor: Colors.red));
               }
             },
             child: Text("Guardar", style: TextStyle(color: Colors.white)),
@@ -164,28 +181,20 @@ class _CreateRouteScreenState extends State<CreateRouteScreen> {
     );
   }
 
-  // --- MÉTODOS FECHA/HORA ---
   Future<void> _seleccionarFecha() async {
-    DateTime? fechaElegida = await showDatePicker(
-      context: context, initialDate: DateTime.now(), firstDate: DateTime.now(), lastDate: DateTime(2030),
-    );
+    DateTime? fechaElegida = await showDatePicker(context: context, initialDate: DateTime.now(), firstDate: DateTime.now(), lastDate: DateTime(2030));
     if (fechaElegida != null) {
-      setState(() {
-        dateController.text = "${fechaElegida.day.toString().padLeft(2, '0')}/${fechaElegida.month.toString().padLeft(2, '0')}/${fechaElegida.year}";
-      });
+      setState(() => dateController.text = "${fechaElegida.day.toString().padLeft(2, '0')}/${fechaElegida.month.toString().padLeft(2, '0')}/${fechaElegida.year}");
     }
   }
 
   Future<void> _seleccionarHora() async {
     TimeOfDay? horaElegida = await showTimePicker(context: context, initialTime: TimeOfDay.now());
     if (horaElegida != null) {
-      setState(() {
-        timeController.text = "${horaElegida.hour.toString().padLeft(2, '0')}:${horaElegida.minute.toString().padLeft(2, '0')}";
-      });
+      setState(() => timeController.text = "${horaElegida.hour.toString().padLeft(2, '0')}:${horaElegida.minute.toString().padLeft(2, '0')}");
     }
   }
 
-  // --- AÑADIR PUNTO DE RECOGIDA ---
   void _addPickupPoint() {
     if (pickupController.text.trim().isNotEmpty) {
       setState(() {
@@ -199,7 +208,7 @@ class _CreateRouteScreenState extends State<CreateRouteScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.grey.shade100, // Fondo gris claro para que resalten las cajas blancas
+      backgroundColor: Colors.grey.shade100,
       appBar: AppBar(
         title: Text("Crear ruta", style: TextStyle(color: Colors.black, fontWeight: FontWeight.bold, fontSize: 20)),
         backgroundColor: Colors.white,
@@ -213,8 +222,6 @@ class _CreateRouteScreenState extends State<CreateRouteScreen> {
           key: _formKey,
           child: Column(
             children: [
-              
-              // CONTENEDOR 1: RECORRIDO
               _buildContainer(
                 title: "Recorrido",
                 child: Column(
@@ -231,7 +238,10 @@ class _CreateRouteScreenState extends State<CreateRouteScreen> {
                         setState(() => originSuggestions = sug);
                       },
                     ),
-                    if (originSuggestions.isNotEmpty) _buildSuggestions(originSuggestions, originController),
+                    if (originSuggestions.isNotEmpty) _buildSuggestions(originSuggestions, originController, (lat, lng) {
+                      selectedOriginLat = lat;
+                      selectedOriginLng = lng;
+                    }),
                     
                     SizedBox(height: 15),
                     
@@ -246,13 +256,15 @@ class _CreateRouteScreenState extends State<CreateRouteScreen> {
                         setState(() => destinationSuggestions = sug);
                       },
                     ),
-                    if (destinationSuggestions.isNotEmpty) _buildSuggestions(destinationSuggestions, destinationController),
+                    if (destinationSuggestions.isNotEmpty) _buildSuggestions(destinationSuggestions, destinationController, (lat, lng) {
+                      selectedDestLat = lat;
+                      selectedDestLng = lng;
+                    }),
                   ],
                 ),
               ),
               SizedBox(height: 15),
 
-              // CONTENEDOR 2: FECHA Y HORA
               _buildContainer(
                 title: "Fecha y hora",
                 child: Row(
@@ -291,7 +303,6 @@ class _CreateRouteScreenState extends State<CreateRouteScreen> {
               ),
               SizedBox(height: 15),
 
-              // CONTENEDOR 3: DETALLES DEL VIAJE
               _buildContainer(
                 title: "Detalles del viaje",
                 child: Row(
@@ -334,7 +345,6 @@ class _CreateRouteScreenState extends State<CreateRouteScreen> {
               ),
               SizedBox(height: 15),
 
-              // CONTENEDOR 4: PUNTOS DE RECOGIDA
               _buildContainer(
                 title: "Puntos de recogida (opcional)",
                 child: Column(
@@ -346,10 +356,14 @@ class _CreateRouteScreenState extends State<CreateRouteScreen> {
                           child: TextFormField(
                             controller: pickupController,
                             decoration: _inputDeco("Añadir dirección...", Icon(Icons.add_location_alt, size: 18)),
-                            onChanged: (val) async {
-                              final sug = await ApiService.getAddressSuggestions(val);
-                              setState(() => pickupSuggestions = sug);
-                            },
+                            onChanged: (val) {
+    if (_debounce?.isActive ?? false) _debounce!.cancel();
+    
+    _debounce = Timer(Duration(milliseconds: 600), () async {
+      final sug = await ApiService.getAddressSuggestions(val);
+      if (mounted) setState(() => pickupSuggestions = sug);
+    });
+  },
                           ),
                         ),
                         SizedBox(width: 10),
@@ -362,9 +376,8 @@ class _CreateRouteScreenState extends State<CreateRouteScreen> {
                         )
                       ],
                     ),
-                    if (pickupSuggestions.isNotEmpty) _buildSuggestions(pickupSuggestions, pickupController),
+                    if (pickupSuggestions.isNotEmpty) _buildSuggestions(pickupSuggestions, pickupController, (lat, lng) {}),
                     
-                    // Lista de puntos añadidos
                     if (puntosRecogida.isNotEmpty)
                       Padding(
                         padding: const EdgeInsets.only(top: 10),
@@ -383,7 +396,6 @@ class _CreateRouteScreenState extends State<CreateRouteScreen> {
               ),
               SizedBox(height: 15),
 
-              // CONTENEDOR 5: PREFERENCIAS DEL VIAJE
               _buildContainer(
                 title: "Preferencias del viaje",
                 child: Column(
@@ -397,7 +409,6 @@ class _CreateRouteScreenState extends State<CreateRouteScreen> {
               ),
               SizedBox(height: 15),
 
-              // CONTENEDOR 6: REPARTO DE GASTOS
               Container(
                 padding: EdgeInsets.all(15),
                 decoration: BoxDecoration(
@@ -421,7 +432,6 @@ class _CreateRouteScreenState extends State<CreateRouteScreen> {
               ),
               SizedBox(height: 25),
 
-              // BOTÓN PUBLICAR RUTA
               isLoading
                   ? Center(child: CircularProgressIndicator())
                   : SizedBox(
@@ -429,7 +439,7 @@ class _CreateRouteScreenState extends State<CreateRouteScreen> {
                       child: ElevatedButton(
                         onPressed: submitRoute,
                         style: ElevatedButton.styleFrom(
-                          backgroundColor: Color(0xFF5F2C82), // Morado corporativo
+                          backgroundColor: Color(0xFF5F2C82), 
                           padding: EdgeInsets.symmetric(vertical: 16),
                           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                         ),
@@ -444,18 +454,11 @@ class _CreateRouteScreenState extends State<CreateRouteScreen> {
     );
   }
 
-  // --- WIDGETS REUTILIZABLES ---
-
-  // Crea la caja con borde gris y título arriba a la izquierda
   Widget _buildContainer({required String title, required Widget child}) {
     return Container(
       width: double.infinity,
       padding: EdgeInsets.all(15),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: Colors.grey.shade300),
-      ),
+      decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(12), border: Border.all(color: Colors.grey.shade300)),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -467,7 +470,6 @@ class _CreateRouteScreenState extends State<CreateRouteScreen> {
     );
   }
 
-  // Estilo de los TextFields
   InputDecoration _inputDeco(String hint, Icon? icon) {
     return InputDecoration(
       hintText: hint,
@@ -480,8 +482,7 @@ class _CreateRouteScreenState extends State<CreateRouteScreen> {
     );
   }
 
-  // Dibuja la caja de sugerencias del mapa debajo del input
-  Widget _buildSuggestions(List<String> list, TextEditingController controller) {
+  Widget _buildSuggestions(List<Map<String, dynamic>> list, TextEditingController controller, Function(double, double) onSelect) {
     return Container(
       margin: EdgeInsets.only(top: 5),
       decoration: BoxDecoration(border: Border.all(color: Colors.grey.shade200), borderRadius: BorderRadius.circular(8)),
@@ -492,9 +493,10 @@ class _CreateRouteScreenState extends State<CreateRouteScreen> {
         itemBuilder: (context, idx) => ListTile(
           dense: true,
           leading: Icon(Icons.location_city, size: 18),
-          title: Text(list[idx], style: TextStyle(fontSize: 12)),
+          title: Text(list[idx]['name'], style: TextStyle(fontSize: 12)),
           onTap: () => setState(() {
-            controller.text = list[idx];
+            controller.text = list[idx]['name'];
+            onSelect(list[idx]['lat'], list[idx]['lng']);
             list.clear();
           }),
         ),
@@ -502,7 +504,6 @@ class _CreateRouteScreenState extends State<CreateRouteScreen> {
     );
   }
 
-  // Fila para cada Checkbox de preferencias
   Widget _buildCheckboxRow(String emoji, String title, bool value, Function(bool?) onChanged) {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 2),
@@ -516,11 +517,7 @@ class _CreateRouteScreenState extends State<CreateRouteScreen> {
               Text(title, style: TextStyle(fontSize: 14)),
             ],
           ),
-          Checkbox(
-            value: value,
-            onChanged: onChanged,
-            activeColor: Color(0xFF5F2C82), // Morado
-          ),
+          Checkbox(value: value, onChanged: onChanged, activeColor: Color(0xFF5F2C82)),
         ],
       ),
     );

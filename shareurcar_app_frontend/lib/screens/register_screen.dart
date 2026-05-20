@@ -40,7 +40,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
         "rating": 0
       });
 
-      if (!mounted) return; // ¡NUEVO!
+      if (!mounted) return; 
 
       showDialog(
         context: context,
@@ -55,7 +55,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
       });
 
     } catch (e) {
-      if (!mounted) return; // ¡NUEVO!
+      if (!mounted) return; 
       showError(e.toString());
     }
   }

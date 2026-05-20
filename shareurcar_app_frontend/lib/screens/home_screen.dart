@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:shareurcar_app_frontend/screens/create_route_screen.dart';
+import 'package:shareurcar_app_frontend/screens/search_route_screen.dart';
 import '../services/api_service.dart';
 
 class HomeScreen extends StatefulWidget {
@@ -106,11 +107,19 @@ class _HomeScreenState extends State<HomeScreen> {
                     ),
                     SizedBox(width: 10),
                     Expanded(
-                      child: actionButton(
-                        "Buscar rutas",
-                        Icons.search,
-                        Colors.deepPurpleAccent,
-                      ),
+                      child: GestureDetector(
+                        onTap: () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(builder: (_) => SearchRouteScreen(user: widget.user)),
+                          );
+                        },
+                        child: actionButton(
+                          "Buscar rutas",
+                          Icons.search,
+                          Colors.deepPurpleAccent,
+                        ),
+                      )
                     ),
                   ],
                 )

@@ -24,7 +24,7 @@ class _LoginScreenState extends State<LoginScreen> {
 
       if (!mounted) return;
 
-      Navigator.pushReplacement( // Mejor pushReplacement para no poder volver al login con el botón de atrás
+      Navigator.pushReplacement( 
         context,
         MaterialPageRoute(builder: (_) => MainNavigation(user: user)),
       );
