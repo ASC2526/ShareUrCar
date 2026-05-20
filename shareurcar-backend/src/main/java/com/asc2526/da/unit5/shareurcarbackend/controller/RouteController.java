@@ -52,9 +52,11 @@ public class RouteController {
     // SEARCH
     @GetMapping("/search")
     public List<Route> searchRoutes(
-            @RequestParam String origin,
-            @RequestParam String destination
+            @RequestParam Double originLat,
+            @RequestParam Double originLng,
+            @RequestParam Double destLat,
+            @RequestParam Double destLng
     ) {
-        return routeService.searchRoutes(origin, destination);
+        return routeService.searchRoutes(originLat, originLng, destLat, destLng);
     }
 }

@@ -1,5 +1,6 @@
 package com.asc2526.da.unit5.shareurcarbackend.exception;
 
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.MethodArgumentNotValidException;
@@ -71,6 +72,14 @@ public class GlobalExceptionHandler {
         return new ResponseEntity<>(
                 new ApiError(500, ex.getMessage(), LocalDateTime.now()),
                 HttpStatus.INTERNAL_SERVER_ERROR
+        );
+    }
+
+    @ExceptionHandler(DataIntegrityViolationException.class)
+    public ResponseEntity<ApiError> handleDataIntegrity(DataIntegrityViolationException ex) {
+        return new ResponseEntity<>(
+                new ApiError(409, "Conflicto en la base de datos (posible duplicado o clave foránea en uso)", LocalDateTime.now()),
+                HttpStatus.CONFLICT
         );
     }
 

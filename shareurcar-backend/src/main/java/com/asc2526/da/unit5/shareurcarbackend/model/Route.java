@@ -31,6 +31,18 @@ public class Route {
     @NotBlank
     private String destination;
 
+    @Column(name = "origin_lat")
+    private Double originLat;
+
+    @Column(name = "origin_lng")
+    private Double originLng;
+
+    @Column(name = "destination_lat")
+    private Double destinationLat;
+
+    @Column(name = "destination_lng")
+    private Double destinationLng;
+
     @NotNull
     private LocalTime departure_time;
     private LocalTime arrival_time;

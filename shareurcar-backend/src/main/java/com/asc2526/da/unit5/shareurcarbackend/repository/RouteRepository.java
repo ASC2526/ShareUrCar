@@ -8,12 +8,26 @@ import org.springframework.data.repository.query.Param;
 import java.util.List;
 
 public interface RouteRepository extends JpaRepository<Route, Integer> {
-    @Query("SELECT r " +
-            "FROM Route r " +
-            "WHERE r.origin = :origin " +
-            "AND r.destination = :destination")
-    List<Route> findByOriginAndDestination(
-            @Param("origin") String origin,
-            @Param("destination") String destination
+    @SuppressWarnings("SqlDialectInspection")
+    @Query(value = """
+        SELECT * FROM routes r
+        WHERE\s
+        (6371 * acos(cos(radians(:oLat)) * cos(radians(r.origin_lat))\s
+        * cos(radians(r.origin_lng) - radians(:oLng))\s
+        + sin(radians(:oLat)) * sin(radians(r.origin_lat)))) <= :radius
+        AND\s
+        (6371 * acos(cos(radians(:dLat)) * cos(radians(r.destination_lat))\s
+        * cos(radians(r.destination_lng) - radians(:dLng))\s
+        + sin(radians(:dLat)) * sin(radians(r.destination_lat)))) <= :radius
+        ORDER BY (6371 * acos(cos(radians(:oLat)) * cos(radians(r.origin_lat))\s
+        * cos(radians(r.origin_lng) - radians(:oLng))\s
+        + sin(radians(:oLat)) * sin(radians(r.origin_lat)))) ASC
+       \s""", nativeQuery = true)
+    List<Route> findNearbyRoutes(
+            @Param("oLat") Double oLat,
+            @Param("oLng") Double oLng,
+            @Param("dLat") Double dLat,
+            @Param("dLng") Double dLng,
+            @Param("radius") Double radius
     );
 }

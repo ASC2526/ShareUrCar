@@ -1,6 +1,7 @@
 package com.asc2526.da.unit5.shareurcarbackend.auth;
 
 import com.asc2526.da.unit5.shareurcarbackend.model.User;
+import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.*;
 
@@ -23,7 +24,7 @@ public class AuthController {
     // REGISTER
     @PostMapping("/register")
     @ResponseStatus(HttpStatus.CREATED)
-    public User register(@RequestBody User user) {
+    public User register(@Valid @RequestBody User user) {
         return authService.register(user);
     }
 }
