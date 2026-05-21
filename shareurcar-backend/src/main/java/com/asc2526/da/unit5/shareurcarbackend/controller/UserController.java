@@ -1,5 +1,6 @@
 package com.asc2526.da.unit5.shareurcarbackend.controller;
 
+import com.asc2526.da.unit5.shareurcarbackend.model.Review;
 import com.asc2526.da.unit5.shareurcarbackend.model.User;
 import com.asc2526.da.unit5.shareurcarbackend.service.UserService;
 import jakarta.validation.Valid;
@@ -24,7 +25,7 @@ public class UserController {
     }
 
     @GetMapping("/{id}")
-    public User getUserById(@PathVariable Long id) {
+    public User getUserById(@PathVariable Integer id) {
         return userService.getUserById(id);
     }
 
@@ -36,15 +37,20 @@ public class UserController {
 
     @DeleteMapping("/{id}")
     @ResponseStatus(HttpStatus.NO_CONTENT)
-    public void deleteUser(@PathVariable Long id) {
+    public void deleteUser(@PathVariable Integer id) {
         userService.deleteUser(id);
     }
 
     @PutMapping("/{id}")
     public User updateUser(
-            @PathVariable Long id,
+            @PathVariable Integer id,
             @Valid @RequestBody User user
     ) {
         return userService.updateUser(id, user);
+    }
+
+    @GetMapping("/{id}/reviews")
+    public List<Review> getUserReviews(@PathVariable Integer id) {
+        return userService.getUserReviews(id);
     }
 }

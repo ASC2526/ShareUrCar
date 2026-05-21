@@ -20,7 +20,7 @@ public class SecurityConfig {
         http
                 .csrf(csrf -> csrf.disable())
                 .authorizeHttpRequests(auth -> auth
-                        .anyRequest().permitAll() // Dejamos abierto para el desarrollo, pero ya encriptamos
+                        .anyRequest().permitAll()
                 )
                 .formLogin(form -> form.disable());
         return http.build();

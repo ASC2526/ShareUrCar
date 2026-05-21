@@ -4,6 +4,8 @@ import jakarta.persistence.*;
 import jakarta.validation.constraints.*;
 import lombok.*;
 
+import java.time.LocalDate;
+
 @Entity
 @Table(name = "users")
 @Getter
@@ -15,9 +17,9 @@ public class User {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     @Column(name = "id_user")
-    private Long idUser;
+    private Integer idUser;
 
-    @NotBlank
+    @NotBlank(message = "El nombre no puede estar vacío")
     @Size(max = 100)
     private String firstname;
 
@@ -26,11 +28,11 @@ public class User {
     private String lastname;
 
     @Email
-    @NotBlank
+    @NotBlank(message = "El email no puede estar vacío")
     @Column(unique = true)
     private String email;
 
-    @NotBlank
+    @NotBlank(message = "La contraseña no puede estar vacía")
     @Size(min = 4)
     private String password;
     private String center;
@@ -39,4 +41,12 @@ public class User {
     @Min(0)
     @Max(5)
     private Double rating;
+
+    private String phone;
+
+    @Column(name = "about_me")
+    private String aboutMe;
+
+    @Column(name = "created_at", insertable = false, updatable = false)
+    private LocalDate createdAt;
 }

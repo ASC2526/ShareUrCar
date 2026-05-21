@@ -7,6 +7,8 @@ import jakarta.validation.constraints.NotNull;
 import lombok.*;
 
 import java.time.LocalTime;
+import java.util.ArrayList;
+import java.util.List;
 
 @Entity
 @Table(name = "routes")
@@ -24,6 +26,14 @@ public class Route {
     @NotNull
     @Column(name = "id_driver")
     private Integer idDriver;
+
+    @ManyToMany
+    @JoinTable(
+            name = "route_passengers",
+            joinColumns = @JoinColumn(name = "id_route"),
+            inverseJoinColumns = @JoinColumn(name = "id_user")
+    )
+    private List<User> passengers = new ArrayList<>();
 
     @NotBlank
     private String origin;

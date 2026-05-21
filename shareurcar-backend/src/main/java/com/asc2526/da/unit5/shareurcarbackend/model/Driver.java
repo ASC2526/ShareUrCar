@@ -30,4 +30,7 @@ public class Driver {
     @Min(1)
     @Column(name = "max_seats")
     private Integer maxSeats;
+
+    @Column(name = "car_color")
+    private String carColor;
 }

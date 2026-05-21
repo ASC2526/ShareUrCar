@@ -2,7 +2,9 @@ package com.asc2526.da.unit5.shareurcarbackend.service;
 
 import com.asc2526.da.unit5.shareurcarbackend.exception.AlreadyExistsException;
 import com.asc2526.da.unit5.shareurcarbackend.exception.UserNotFoundException;
+import com.asc2526.da.unit5.shareurcarbackend.model.Review;
 import com.asc2526.da.unit5.shareurcarbackend.model.User;
+import com.asc2526.da.unit5.shareurcarbackend.repository.ReviewRepository;
 import com.asc2526.da.unit5.shareurcarbackend.repository.UserRepository;
 import org.springframework.stereotype.Service;
 
@@ -12,19 +14,21 @@ import java.util.List;
 public class UserService {
 
     private final UserRepository userRepository;
+    private final ReviewRepository reviewRepository;
 
-    public UserService(UserRepository userRepository) {
+    public UserService(UserRepository userRepository, ReviewRepository reviewRepository) {
         this.userRepository = userRepository;
+        this.reviewRepository = reviewRepository;
     }
 
     public List<User> getAllUsers() {
         return userRepository.findAll();
     }
 
-    public User getUserById(Long id) {
+    public User getUserById(Integer id) {
         if (id == null) throw new IllegalArgumentException("Id no puede ser null");
 
-        return userRepository.findById(id)
+        return userRepository.findUserByIdUser(id)
                 .orElseThrow(() -> new UserNotFoundException(id));
     }
 
@@ -39,11 +43,11 @@ public class UserService {
         return userRepository.save(user);
     }
 
-    public void deleteUser(Long id) {
-        userRepository.deleteById(id);
+    public void deleteUser(Integer id) {
+        userRepository.deleteUserByIdUser(id);
     }
 
-    public User updateUser(Long id, User userDetails) {
+    public User updateUser(Integer id, User userDetails) {
 
         User user = getUserById(id);
 
@@ -58,5 +62,9 @@ public class UserService {
         user.setPassword(userDetails.getPassword());
 
         return userRepository.save(user);
+    }
+
+    public List<Review> getUserReviews(Integer userId) {
+        return reviewRepository.findByIdReviewed(userId);
     }
 }

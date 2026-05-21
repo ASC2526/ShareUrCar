@@ -30,4 +30,15 @@ public interface RouteRepository extends JpaRepository<Route, Integer> {
             @Param("dLng") Double dLng,
             @Param("radius") Double radius
     );
+
+    @SuppressWarnings("SqlDialectInspection")
+    @Query(value = """
+        SELECT r.* FROM routes r
+        WHERE r.id_driver = :userId
+        UNION
+        SELECT r.* FROM routes r
+        JOIN route_passengers rp ON r.id_route = rp.id_route
+        WHERE rp.id_user = :userId
+        """, nativeQuery = true)
+    List<Route> findMyRoutes(@Param("userId") Integer userId);
 }

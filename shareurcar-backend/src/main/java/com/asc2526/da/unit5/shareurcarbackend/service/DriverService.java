@@ -27,12 +27,10 @@ public class DriverService {
         if (driver.getIdDriver() == null) {
             throw new IllegalArgumentException("El ID del conductor no puede ser nulo");
         }
-        // Comprobar que el usuario existe en users
         if (!userRepository.existsById(Long.valueOf(driver.getIdDriver()))) {
             throw new RuntimeException("El usuario no existe");
         }
 
-        // Comprobar si ya existe ese coche
         if (driverRepository.existsById(driver.getCarPlate())) {
             throw new AlreadyExistsException("Ese coche ya está registrado");
         }

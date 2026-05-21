@@ -21,9 +21,33 @@ public class GlobalExceptionHandler {
         );
     }
 
+    @ExceptionHandler(NoAvailableSeatsException.class)
+    public ResponseEntity<ApiError> handleNoAvailableSeats(NoAvailableSeatsException ex) {
+        return new ResponseEntity<>(
+                new ApiError(409, ex.getMessage(), LocalDateTime.now()),
+                HttpStatus.CONFLICT
+        );
+    }
+
+    @ExceptionHandler(YourOwnRouteException.class)
+    public ResponseEntity<ApiError> handleYourOwnRoute(YourOwnRouteException ex) {
+        return new ResponseEntity<>(
+                new ApiError(409, ex.getMessage(), LocalDateTime.now()),
+                HttpStatus.CONFLICT
+        );
+    }
+
     // USER
     @ExceptionHandler(UserNotFoundException.class)
     public ResponseEntity<ApiError> handleUserNotFound(UserNotFoundException ex) {
+        return new ResponseEntity<>(
+                new ApiError(404, ex.getMessage(), LocalDateTime.now()),
+                HttpStatus.NOT_FOUND
+        );
+    }
+
+    @ExceptionHandler(UserIsNotDriverException.class)
+    public ResponseEntity<ApiError> handleUserIsNotDriver(UserIsNotDriverException ex) {
         return new ResponseEntity<>(
                 new ApiError(404, ex.getMessage(), LocalDateTime.now()),
                 HttpStatus.NOT_FOUND
