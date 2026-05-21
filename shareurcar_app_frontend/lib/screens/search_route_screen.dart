@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart';
+import 'package:shareurcar_app_frontend/screens/route_details_screen.dart';
 import '../services/api_service.dart';
 import 'create_route_screen.dart'; 
 import 'dart:async';
@@ -96,12 +97,12 @@ class _SearchRouteScreenState extends State<SearchRouteScreen> {
 
   void _mostrarResultadosBottomSheet() {
     // Función auxiliar para limpiar el texto y quitar ", Alicante"
-    String _limpiarDireccion(String direccion) {
+    String limpiarDireccion(String direccion) {
       return direccion.replaceAll(", Alicante", "").trim();
     }
 
     // Función auxiliar para quitar los segundos de la hora 
-    String _formatearHora(String hora) {
+    String formatearHora(String hora) {
       return hora.length >= 5 ? hora.substring(0, 5) : hora;
     }
 
@@ -138,7 +139,18 @@ class _SearchRouteScreenState extends State<SearchRouteScreen> {
                         itemCount: rutasEncontradas.length,
                         itemBuilder: (context, index) {
                           final ruta = rutasEncontradas[index];
-                          
+                          final currentUserId = widget.user['idUser'] ?? widget.user['id_user'] ?? widget.user['id'];
+                          final driverId = ruta['idDriver'] ?? ruta['id_driver'] ?? ruta['id_driver_id'];
+
+                          bool esMiRuta = driverId == currentUserId;
+                          bool yaUnido = false;
+
+                          if (ruta['passengers'] != null) {
+                            yaUnido = (ruta['passengers'] as List).any((p) {
+                              final pid = p['idUser'] ?? p['id_user'] ?? p['id'];
+                              return pid == currentUserId;
+                            });
+                          }
                           return Card(
                             elevation: 0,
                             margin: EdgeInsets.only(bottom: 15),
@@ -160,7 +172,7 @@ class _SearchRouteScreenState extends State<SearchRouteScreen> {
                                         children: [
                                           Icon(Icons.access_time, size: 20, color: Color(0xFF5F2C82)),
                                           SizedBox(width: 8),
-                                          Text(_formatearHora(ruta['departure_time'].toString()), style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.black87)),
+                                          Text(formatearHora(ruta['departure_time'].toString()), style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.black87)),
                                         ],
                                       ),
                                       Container(
@@ -197,9 +209,9 @@ class _SearchRouteScreenState extends State<SearchRouteScreen> {
                                         child: Column(
                                           crossAxisAlignment: CrossAxisAlignment.start,
                                           children: [
-                                            Text(_limpiarDireccion(ruta['origin']), style: TextStyle(fontSize: 15, color: Colors.black87), maxLines: 1, overflow: TextOverflow.ellipsis),
+                                            Text(limpiarDireccion(ruta['origin']), style: TextStyle(fontSize: 15, color: Colors.black87), maxLines: 1, overflow: TextOverflow.ellipsis),
                                             SizedBox(height: 18),
-                                            Text(_limpiarDireccion(ruta['destination']), style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: Colors.black87), maxLines: 1, overflow: TextOverflow.ellipsis),
+                                            Text(limpiarDireccion(ruta['destination']), style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: Colors.black87), maxLines: 1, overflow: TextOverflow.ellipsis),
                                           ],
                                         ),
                                       ),
@@ -214,28 +226,65 @@ class _SearchRouteScreenState extends State<SearchRouteScreen> {
                                   Row(
                                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                                     children: [
-                                      Row(
-                                        children: [
-                                          CircleAvatar(
-                                            radius: 16,
-                                            backgroundColor: Color(0xFF5F2C82).withOpacity(0.1),
-                                            child: Icon(Icons.person, size: 18, color: Color(0xFF5F2C82)),
-                                          ),
-                                          SizedBox(width: 10),
-                                          Text("Ver detalles", style: TextStyle(color: Colors.grey.shade700, fontSize: 14)),
-                                        ],
-                                      ),
-                                      ElevatedButton(
-                                        style: ElevatedButton.styleFrom(
-                                          backgroundColor: Color(0xFF49A09D),
-                                          elevation: 0,
-                                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                                          padding: EdgeInsets.symmetric(horizontal: 20, vertical: 10),
-                                        ),
-                                        onPressed: () {
+                                      InkWell(
+                                        borderRadius: BorderRadius.circular(8),
+                                        onTap: () async {
+                                          Navigator.pop(context); // Cierra el panel de resultados
+                                          final seUnio = await Navigator.push(
+                                            context, 
+                                            MaterialPageRoute(builder: (_) => RouteDetailsScreen(ruta: ruta, user: widget.user))
+                                          );
+                                          // Si se une desde la pantalla de detalles y vuelve, salimos al Home
+                                          if (seUnio == true && mounted) {
+                                            Navigator.pop(context);
+                                          }
                                         },
-                                        child: Text("Unirse", style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                                        child: Padding(
+                                          padding: const EdgeInsets.symmetric(vertical: 8.0, horizontal: 4.0),
+                                          child: Row(
+                                            children: [
+                                              CircleAvatar(
+                                                radius: 16,
+                                                backgroundColor: Color(0xFF5F2C82).withOpacity(0.1),
+                                                child: Icon(Icons.person, size: 18, color: Color(0xFF5F2C82)),
+                                              ),
+                                              SizedBox(width: 10),
+                                              Text("Ver detalles", style: TextStyle(color: Color(0xFF5F2C82), fontSize: 14, fontWeight: FontWeight.bold)),
+                                            ],
+                                          ),
+                                        ),
                                       ),
+                                      
+                                      // Botón Unirse
+                                      esMiRuta
+                                          ? Text("Tu ruta", style: TextStyle(color: Colors.grey.shade600, fontWeight: FontWeight.w600))
+                                          : yaUnido
+                                              ? Row(
+                                                  children: [
+                                                    Icon(Icons.check_circle, color: Colors.green, size: 20),
+                                                    SizedBox(width: 5),
+                                                    Text("Ya unido", style: TextStyle(color: Colors.green, fontWeight: FontWeight.w600)),
+                                                  ],
+                                                )
+                                              : ElevatedButton(
+                                                  style: ElevatedButton.styleFrom(
+                                                    backgroundColor: Color(0xFF49A09D),
+                                                    elevation: 0,
+                                                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                                                    padding: EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+                                                  ),
+                                                  onPressed: () async {
+                                                    Navigator.pop(context); 
+                                                    final seUnio = await Navigator.push(
+                                                      context, 
+                                                      MaterialPageRoute(builder: (_) => RouteDetailsScreen(ruta: ruta, user: widget.user))
+                                                    );
+                                                    if (seUnio == true && mounted) {
+                                                      Navigator.pop(context);
+                                                    }
+                                                  },
+                                                  child: Text("Unirse", style: TextStyle(color: Colors.white, fontWeight: FontWeight.w600)),
+                                                ),
                                     ],
                                   ),
                                 ],
@@ -306,7 +355,6 @@ class _SearchRouteScreenState extends State<SearchRouteScreen> {
                 TextFormField(
                   controller: destinationController,
                   decoration: _inputDeco("Destino", Icon(Icons.location_on, color: Colors.red, size: 20)),
-                  // En el campo de DESTINO, pon este onChanged:
   onChanged: (val) {
     if (_debounce?.isActive ?? false) _debounce!.cancel();
     

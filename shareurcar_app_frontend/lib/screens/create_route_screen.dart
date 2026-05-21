@@ -329,7 +329,7 @@ class _CreateRouteScreenState extends State<CreateRouteScreen> {
                           Text("Frecuencia de viaje", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
                           SizedBox(height: 5),
                           DropdownButtonFormField<String>(
-                            value: frecuenciaSeleccionada,
+                            initialValue: frecuenciaSeleccionada,
                             decoration: _inputDeco("", null),
                             icon: Icon(Icons.keyboard_arrow_down, size: 20),
                             items: opcionesFrecuencia.map((String valor) {

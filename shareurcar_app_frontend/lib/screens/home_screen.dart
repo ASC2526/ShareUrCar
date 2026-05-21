@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:shareurcar_app_frontend/screens/create_route_screen.dart';
 import 'package:shareurcar_app_frontend/screens/search_route_screen.dart';
+import 'package:shareurcar_app_frontend/screens/profile_screen.dart'; // Importar perfil
 import '../services/api_service.dart';
 
 class HomeScreen extends StatefulWidget {
@@ -19,23 +20,20 @@ class _HomeScreenState extends State<HomeScreen> {
   @override
   void initState() {
     super.initState();
-    loadRoutes();
+    fetchMyRoutes();
   }
 
-  void loadRoutes() async {
+  void fetchMyRoutes() async {
+    setState(() => isLoading = true);
     try {
-      final routes = await ApiService.getRoutes();
-      if (!mounted) return;
+      final rutas = await ApiService.getMyRoutes(widget.user['idUser']); 
       setState(() {
-        dynamicRoutes = routes;
-        isLoading = false;
+        dynamicRoutes = rutas;
       });
     } catch (e) {
-      if (!mounted) return;
-      setState(() {
-        isLoading = false;
-      });
-      // Aquí snacback de error para poner más tarde
+      print("Error: $e");
+    } finally {
+      setState(() => isLoading = false);
     }
   }
 
@@ -81,9 +79,18 @@ class _HomeScreenState extends State<HomeScreen> {
                         ),
                       ],
                     ),
-                    CircleAvatar(
-                      backgroundColor: Colors.white24,
-                      child: Icon(Icons.person, color: Colors.white),
+                    // AQUÍ ESTÁ EL CAMBIO DEL BOTÓN DE PERFIL
+                    GestureDetector(
+                      onTap: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(builder: (_) => ProfileScreen(user: widget.user)),
+                        );
+                      },
+                      child: CircleAvatar(
+                        backgroundColor: Colors.white24,
+                        child: Icon(Icons.person, color: Colors.white),
+                      ),
                     )
                   ],
                 ),
@@ -101,7 +108,7 @@ class _HomeScreenState extends State<HomeScreen> {
                         child: actionButton(
                           "Crear ruta",
                            Icons.add,
-                         Colors.lightBlueAccent,
+                          Colors.lightBlueAccent,
                         ),
                       )
                     ),
@@ -147,7 +154,6 @@ class _HomeScreenState extends State<HomeScreen> {
                   ),
                   SizedBox(height: 10),
                   
-                  // Mostrar loader mientras trae datos de Spring Boot
                   if (isLoading)
                     Expanded(child: Center(child: CircularProgressIndicator()))
                   else if (hasTrips)
@@ -156,7 +162,6 @@ class _HomeScreenState extends State<HomeScreen> {
                         itemCount: dynamicRoutes.length,
                         itemBuilder: (context, index) {
                           final route = dynamicRoutes[index];
-                          // Adaptamos los datos reales del backend al card
                           return tripCard(
                             "${route['origin']} - ${route['destination']}",
                             route['departure_time'] ?? 'Hora no definida',

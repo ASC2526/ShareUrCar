@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:shareurcar_app_frontend/screens/profile_screen.dart';
 import 'home_screen.dart';
 
 class MainNavigation extends StatefulWidget {
@@ -21,7 +22,7 @@ class _MainNavigationState extends State<MainNavigation> {
       HomeScreen(user: widget.user),
       Center(child: Text("Chats")),
       Center(child: Text("Pagos")),
-      Center(child: Text("Perfil")),
+      ProfileScreen(user: widget.user),
     ];
 
     return Scaffold(

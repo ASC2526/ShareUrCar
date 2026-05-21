@@ -126,4 +126,40 @@ final response = await http.get(url, headers: {
     throw Exception("Error al buscar las rutas");
   }
 
+  // Cargar solo las rutas donde el usuario es conductor o pasajero
+  static Future<List<dynamic>> getMyRoutes(int userId) async {
+    final url = Uri.parse("$baseUrl/routes/my-routes/$userId");
+    final response = await http.get(url);
+    if (response.statusCode == 200) {
+      return json.decode(response.body);
+    } else {
+      throw Exception("Error al cargar tus rutas");
+    }
+  }
+
+  // Unirse a una ruta
+  static Future<void> joinRoute(int routeId, int userId) async {
+    final url = Uri.parse("$baseUrl/routes/$routeId/join/$userId");
+    final response = await http.post(url);
+    
+    if (response.statusCode != 200) {
+      try {
+        final errorBody = json.decode(response.body);
+        throw Exception(errorBody['error'] ?? "Error desconocido al unirse");
+      } catch (e) {
+        throw Exception("Error al unirse a la ruta");
+      }
+    }
+  }
+
+  static Future<List<dynamic>> getUserReviews(int userId) async {
+    final url = Uri.parse("$baseUrl/users/$userId/reviews");
+    final response = await http.get(url);
+    if (response.statusCode == 200) {
+      return json.decode(response.body);
+    } else {
+      throw Exception("Error al cargar las reseñas");
+    }
+  }
+
 }
