@@ -85,7 +85,7 @@ class _RouteDetailsScreenState extends State<RouteDetailsScreen> {
       body: Column(
         children: [
           // MAPA SUPERIOR
-          Container(
+          SizedBox(
             height: 250,
             width: double.infinity,
             child: FlutterMap(
