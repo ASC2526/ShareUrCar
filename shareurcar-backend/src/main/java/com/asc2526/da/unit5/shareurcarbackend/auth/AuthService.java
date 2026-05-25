@@ -22,7 +22,6 @@ public class AuthService {
         }
 
         return userRepository.findByEmail(request.getEmail().trim())
-                // Comparamos la contraseña limpia con el hash de la BD
                 .filter(user -> passwordEncoder.matches(request.getPassword().trim(), user.getPassword()))
                 .orElseThrow(() -> new RuntimeException("Credenciales incorrectas"));
     }

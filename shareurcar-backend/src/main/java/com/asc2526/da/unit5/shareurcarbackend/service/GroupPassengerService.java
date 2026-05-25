@@ -81,11 +81,10 @@ public class GroupPassengerService {
             Payment payment = new Payment();
             payment.setIdGroup(gp.getIdGroup());
             payment.setIdUser(gp.getIdUser());
-            payment.setAmount(5.00); // Aquí podrías poner un precio dinámico si estuviera en la entidad Route
+            payment.setAmount(5.00);
             paymentService.create(payment);
         }
 
-        // Si pasa de aceptado a cancelado/rechazado, habría que sumar la plaza de nuevo
         if (!state.equalsIgnoreCase("aceptado") && gp.getState().equalsIgnoreCase("aceptado")) {
             TravelGroup group = travelGroupRepository.findById(gp.getIdGroup()).orElseThrow();
             Route route = routeRepository.findById(group.getIdRoute()).orElseThrow();

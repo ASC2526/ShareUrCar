@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import '../services/api_service.dart';
 
@@ -17,6 +19,9 @@ class _RegisterScreenState extends State<RegisterScreen> {
   final centerController = TextEditingController();
   final passwordController = TextEditingController();
   final confirmController = TextEditingController();
+
+  Timer? _centerDebounce;
+  List<Map<String, dynamic>> centerSuggestions = [];
 
   void register() async {
     if (!_formKey.currentState!.validate()) return;
@@ -49,9 +54,8 @@ class _RegisterScreenState extends State<RegisterScreen> {
           content: Text("Cuenta creada correctamente"),
         ),
       ).then((_) {
-        // Mejor usar el .then para cerrar todo de forma limpia cuando el usuario acepta el dialog
         if (!mounted) return;
-        Navigator.pop(context); // Volver al login
+        Navigator.pop(context);
       });
 
     } catch (e) {
@@ -112,7 +116,59 @@ class _RegisterScreenState extends State<RegisterScreen> {
 
               input("Nombre completo", nameController, Icons.person),
               input("Correo electrónico", emailController, Icons.email),
-              input("Centro (opcional)", centerController, Icons.school),
+              Padding(
+                padding: EdgeInsets.only(bottom: 15),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    TextFormField(
+                      controller: centerController,
+                      style: TextStyle(color: Colors.white),
+                      decoration: InputDecoration(
+                        hintText: "Centro Educativo (Ej: Mare Nostrum)",
+                        hintStyle: TextStyle(color: Colors.white70),
+                        prefixIcon: Icon(Icons.school, color: Colors.white),
+                        filled: true,
+                        fillColor: Colors.white24,
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(15),
+                          borderSide: BorderSide.none,
+                        ),
+                      ),
+                      onChanged: (val) {
+                        if (_centerDebounce?.isActive ?? false) _centerDebounce!.cancel();
+                        _centerDebounce = Timer(Duration(milliseconds: 600), () async {
+                          final sug = await ApiService.getCenterSuggestions(val);
+                          if (mounted) setState(() => centerSuggestions = sug);
+                        });
+                      },
+                    ),
+                    // desplegable de resultados
+                    if (centerSuggestions.isNotEmpty)
+                      Container(
+                        margin: EdgeInsets.only(top: 5),
+                        decoration: BoxDecoration(
+                          color: Colors.white, 
+                          borderRadius: BorderRadius.circular(15)
+                        ),
+                        child: ListView.builder(
+                          shrinkWrap: true,
+                          padding: EdgeInsets.zero,
+                          physics: NeverScrollableScrollPhysics(),
+                          itemCount: centerSuggestions.length,
+                          itemBuilder: (context, idx) => ListTile(
+                            leading: Icon(Icons.account_balance, size: 18, color: Color(0xFF5F2C82)),
+                            title: Text(centerSuggestions[idx]['name'], style: TextStyle(fontSize: 13, color: Colors.black87)),
+                            onTap: () => setState(() {
+                              centerController.text = centerSuggestions[idx]['name'];
+                              centerSuggestions.clear();
+                            }),
+                          ),
+                        ),
+                      ),
+                  ],
+                ),
+              ),
               input("Contraseña", passwordController, Icons.lock, obscure: true),
               input("Confirmar contraseña", confirmController, Icons.lock, obscure: true),
 

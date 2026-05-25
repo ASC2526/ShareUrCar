@@ -1,8 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:shareurcar_app_frontend/screens/edit_profile_screen.dart';
 import '../services/api_service.dart';
 
 class ProfileScreen extends StatefulWidget {
-  final Map user; // Recibe los datos del usuario logueado
+  final Map user; 
 
   const ProfileScreen({super.key, required this.user});
 
@@ -14,16 +15,73 @@ class _ProfileScreenState extends State<ProfileScreen> {
   List<dynamic> resenas = [];
   bool isLoadingReviews = true;
   double valoracionMedia = 0.0;
+  late Map currentUser;
+  int totalViajes = 0;
 
   @override
   void initState() {
     super.initState();
     _cargarResenas();
+    _cargarDatosPerfil();
+    currentUser = widget.user;
   }
+
+  Future<void> _refreshUserData() async {
+    try {
+      final userId = currentUser['idUser'] ?? currentUser['id_user'] ?? currentUser['id'];
+      final updatedUser = await ApiService.getUserById(int.parse(userId.toString()));
+      
+      if (mounted) {
+        setState(() {
+          currentUser = updatedUser; 
+        });
+
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text("Perfil actualizado correctamente"),
+            backgroundColor: Color(0xFF49A09D),
+            duration: Duration(seconds: 2),
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text("Error al actualizar el perfil"),
+            backgroundColor: Colors.redAccent,
+          ),
+        );
+      }
+      print("Error al refrescar: $e");
+    }
+  }
+
+  void _cargarDatosPerfil() async {
+  final userId = currentUser['idUser'] ?? currentUser['id_user'] ?? currentUser['id'];
+  
+  final data = await ApiService.getUserReviews(userId);
+  
+  final viajes = await ApiService.getCompletedTripsCount(userId); 
+
+  double suma = 0;
+  for (var r in data) {
+    suma += (r['stars'] ?? 0);
+  }
+  
+  if (mounted) {
+    setState(() {
+      resenas = data;
+      totalViajes = viajes;
+      if (resenas.isNotEmpty) valoracionMedia = suma / resenas.length;
+      isLoadingReviews = false;
+    });
+  }
+}
 
   void _cargarResenas() async {
     try {
-      final userId = widget.user['idUser'] ?? widget.user['id_user'] ?? widget.user['id'];
+      final userId = currentUser['idUser'] ?? currentUser['id_user'] ?? currentUser['id'];
       final data = await ApiService.getUserReviews(userId);
       
       double suma = 0;
@@ -46,14 +104,12 @@ class _ProfileScreenState extends State<ProfileScreen> {
     }
   }
 
-  // Función para sacar las iniciales (Ej: Juan Pérez -> JP)
   String _obtenerIniciales(String nombre, String apellido) {
     String inicialNombre = nombre.isNotEmpty ? nombre[0].toUpperCase() : "";
     String inicialApellido = apellido.isNotEmpty ? apellido[0].toUpperCase() : "";
     return "$inicialNombre$inicialApellido";
   }
 
-  // Función para formatear "2025-03-15" a "Marzo 2025"
   String _formatearFecha(String? fechaISO) {
     if (fechaISO == null) return "este mes";
     try {
@@ -67,33 +123,39 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final String nombre = widget.user['firstname'] ?? 'Usuario';
-    final String apellido = widget.user['lastname'] ?? '';
+    final String nombre = currentUser['firstname'] ?? 'Usuario';
+    final String apellido = currentUser['lastname'] ?? '';
     final String iniciales = _obtenerIniciales(nombre, apellido);
-    final String? fotoUrl = widget.user['profile_photo'];
-    final String telefono = widget.user['phone'] ?? "No disponible";
-    final String sobreMi = widget.user['aboutMe'] ?? widget.user['about_me'] ?? "Todavía no se ha añadido una descripción.";
-    final String fechaCreacion = widget.user['createdAt'] ?? widget.user['created_at'];
+    final String? fotoUrl = currentUser['profile_photo'] ?? currentUser['profile_photo'];
+    final String telefono = currentUser['phone'] ?? "No disponible";
+    final String sobreMi = currentUser['aboutMe'] ?? "Todavía no se ha añadido una descripción.";
+    final String fechaCreacion = currentUser['createdAt'] ?? currentUser['created_at'];
 
     return Scaffold(
-      backgroundColor: Color(0xFF5F2C82), // Fondo morado superior
+      backgroundColor: Color(0xFF5F2C82), 
       appBar: AppBar(
         backgroundColor: Colors.transparent,
         elevation: 0,
-        leading: BackButton(color: Colors.white),
+        automaticallyImplyLeading: false,
         title: Text("Perfil", style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
-        centerTitle: true,
+        centerTitle: false,
         actions: [
           Padding(
             padding: const EdgeInsets.only(right: 15.0, top: 10, bottom: 10),
             child: ElevatedButton.icon(
-              onPressed: () {
-                // Aquí irá la navegación a Editar Perfil
+              onPressed: () async {
+                final recargar = await Navigator.push(
+                  context, 
+                  MaterialPageRoute(builder: (_) => EditProfileScreen(user: currentUser))
+                );
+                if (recargar == true) {
+                  await _refreshUserData();
+                }
               },
               icon: Icon(Icons.edit, size: 16, color: Colors.white),
               label: Text("Editar perfil", style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
               style: ElevatedButton.styleFrom(
-                backgroundColor: Color(0xFF49A09D), // Cyan
+                backgroundColor: Color(0xFF49A09D), 
                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
                 elevation: 0,
               ),
@@ -103,19 +165,21 @@ class _ProfileScreenState extends State<ProfileScreen> {
       ),
       body: Column(
         children: [
-          // CABECERA DEL PERFIL
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 20.0, vertical: 10.0),
             child: Row(
               children: [
                 CircleAvatar(
+                  key: ValueKey(fotoUrl),
                   radius: 40,
                   backgroundColor: Color(0xFF00E5FF),
-                  backgroundImage: fotoUrl != null ? NetworkImage(fotoUrl) : null,
+                  backgroundImage: (fotoUrl != null && fotoUrl.startsWith('http')) 
+                  ? NetworkImage(fotoUrl) : null,
                   child: fotoUrl == null 
                       ? Text(iniciales, style: TextStyle(fontSize: 32, fontWeight: FontWeight.bold, color: Colors.white))
                       : null,
                 ),
+
                 SizedBox(width: 20),
                 
                 Expanded(
@@ -128,7 +192,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
                         children: [
                           Icon(Icons.star, color: Colors.yellowAccent, size: 18),
                           SizedBox(width: 5),
-                          // Mostramos la media dinámica con 1 decimal
                           Text(valoracionMedia.toStringAsFixed(1), style: TextStyle(fontWeight: FontWeight.bold, color: Colors.white, fontSize: 16)),
                           SizedBox(width: 5),
                           Text("(${resenas.length})", style: TextStyle(color: Colors.white70, fontSize: 14)),
@@ -143,25 +206,24 @@ class _ProfileScreenState extends State<ProfileScreen> {
             ),
           ),
 
-          // TARJETA DE ESTADÍSTICAS
+          // tarjeta estadísticas
           Padding(
             padding: const EdgeInsets.all(20.0),
             child: Container(
-              padding: EdgeInsets.symmetric(vertical: 15),
-              decoration: BoxDecoration(
-                color: Colors.white.withOpacity(0.15),
-                borderRadius: BorderRadius.circular(15),
-              ),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                children: [
-                  Column(
-                    children: [
-                      // Esto lo conectaremos al endpoint de viajes completados más adelante
-                      Text("0", style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: Colors.white)),
-                      Text("Viajes completados", style: TextStyle(color: Colors.white70, fontSize: 12)),
-                    ],
-                  ),
+                padding: EdgeInsets.symmetric(vertical: 15),
+                decoration: BoxDecoration(
+                  color: Colors.white.withOpacity(0.15),
+                  borderRadius: BorderRadius.circular(15),
+                ),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                  children: [
+                    Column(
+                      children: [
+                        Text("$totalViajes", style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: Colors.white)),
+                        Text("Viajes completados", style: TextStyle(color: Colors.white70, fontSize: 12)),
+                      ],
+                    ),
                   Container(height: 40, width: 1, color: Colors.white30), 
                   Column(
                     children: [
@@ -174,7 +236,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
             ),
           ),
 
-          // ZONA INFERIOR TABS
           Expanded(
             child: Container(
               decoration: BoxDecoration(
@@ -214,10 +275,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
     );
   }
 
-  // PESTAÑA 1: INFORMACIÓN
+  // INFO
   Widget _buildInformacionTab(String telefono, String sobreMi) {
-    // Si la info del coche viene en el token la usamos, sino ponemos que no hay coche
-    final tieneCoche = widget.user['carPlate'] != null || widget.user['car_plate'] != null;
+    final tieneCoche = currentUser['carPlate'] != null || currentUser['car_plate'] != null;
 
     return SingleChildScrollView(
       padding: EdgeInsets.all(20),
@@ -229,9 +289,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
           SizedBox(height: 15),
           _buildInfoRow(Icons.phone_outlined, "Teléfono: ", telefono),
           SizedBox(height: 10),
-          _buildInfoRow(Icons.email_outlined, "Email: ", widget.user['email'] ?? "No disponible"),
+          _buildInfoRow(Icons.email_outlined, "Email: ", currentUser['email'] ?? "No disponible"),
           SizedBox(height: 10),
-          _buildInfoRow(Icons.school_outlined, "Centro: ", widget.user['center'] ?? "No especificado"),
+          _buildInfoRow(Icons.school_outlined, "Centro: ", currentUser['center'] ?? "No especificado"),
           
           SizedBox(height: 30),
 
@@ -257,11 +317,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
             child: tieneCoche 
               ? Column(
                   children: [
-                    _buildVehicleRow("Modelo:", widget.user['carModel'] ?? widget.user['car_model'] ?? "Desconocido"),
+                    _buildVehicleRow("Modelo:", currentUser['carModel'] ?? currentUser['car_model'] ?? "Desconocido"),
                     Divider(color: Colors.grey.shade300, height: 20),
-                    _buildVehicleRow("Color:", widget.user['carColor'] ?? widget.user['car_color'] ?? "Desconocido"),
+                    _buildVehicleRow("Color:", currentUser['carColor'] ?? currentUser['car_color'] ?? "Desconocido"),
                     Divider(color: Colors.grey.shade300, height: 20),
-                    _buildVehicleRow("Matrícula:", widget.user['carPlate'] ?? widget.user['car_plate'] ?? "Desconocida"),
+                    _buildVehicleRow("Matrícula:", currentUser['carPlate'] ?? currentUser['car_plate'] ?? "Desconocida"),
                   ],
                 )
               : Center(
@@ -273,7 +333,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
     );
   }
 
-  // PESTAÑA 2: RESEÑAS
+  // RESEÑAS
   Widget _buildResenasTab() {
     if (isLoadingReviews) {
       return Center(child: CircularProgressIndicator(color: Color(0xFF5F2C82)));

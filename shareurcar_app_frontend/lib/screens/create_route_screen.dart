@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:intl/intl.dart';
 import '../services/api_service.dart';
 import 'dart:async';
 
@@ -16,27 +17,27 @@ class _CreateRouteScreenState extends State<CreateRouteScreen> {
 
   final originController = TextEditingController();
   final destinationController = TextEditingController();
-  final dateController = TextEditingController();
-  final timeController = TextEditingController();
-  final seatsController = TextEditingController();
   final pickupController = TextEditingController();
 
-  // AHORA SON LISTAS DE MAPAS
   List<Map<String, dynamic>> originSuggestions = [];
   List<Map<String, dynamic>> destinationSuggestions = [];
   List<Map<String, dynamic>> pickupSuggestions = [];
-
-  // COORDENADAS PARA LA BBDD
+  
   double? selectedOriginLat;
   double? selectedOriginLng;
   double? selectedDestLat;
   double? selectedDestLng;
-
   List<String> puntosRecogida = [];
 
-  String frecuenciaSeleccionada = 'Puntual';
-  final List<String> opcionesFrecuencia = ['Puntual', 'Diario', 'Semanal', 'Fines de semana'];
+  TimeOfDay horaSalida = TimeOfDay(hour: 8, minute: 0);
+  int plazas = 3;
 
+  String frecuenciaSeleccionada = 'puntual'; 
+  DateTime? fechaPuntual;
+  List<String> diasSemana = ['L', 'M', 'X', 'J', 'V', 'S', 'D'];
+  List<String> diasSeleccionados = [];
+
+  // Preferencias
   bool prefSinConversar = false;
   bool prefEquipaje = false;
   bool prefMusica = false;
@@ -45,19 +46,67 @@ class _CreateRouteScreenState extends State<CreateRouteScreen> {
   bool isLoading = false;
   Timer? _debounce;
 
+  // funciones para hora y fecha
+  Future<void> _seleccionarHora(BuildContext context) async {
+    final TimeOfDay? picked = await showTimePicker(context: context, initialTime: horaSalida);
+    if (picked != null && picked != horaSalida) {
+      setState(() => horaSalida = picked);
+    }
+  }
+
+  Future<void> _seleccionarFecha(BuildContext context) async {
+    final DateTime? picked = await showDatePicker(
+      context: context,
+      initialDate: DateTime.now(),
+      firstDate: DateTime.now(), 
+      lastDate: DateTime.now().add(Duration(days: 90)), 
+      builder: (context, child) {
+        return Theme(
+          data: Theme.of(context).copyWith(
+            colorScheme: ColorScheme.light(
+              primary: Color(0xFF5F2C82), 
+              onPrimary: Colors.white,
+              onSurface: Colors.black,
+            ),
+          ),
+          child: child!,
+        );
+      },
+    );
+    if (picked != null && picked != fechaPuntual) {
+      setState(() => fechaPuntual = picked);
+    }
+  }
+
+  void _addPickupPoint() {
+    if (pickupController.text.trim().isNotEmpty) {
+      setState(() {
+        puntosRecogida.add(pickupController.text.trim());
+        pickupController.clear();
+        pickupSuggestions = [];
+      });
+    }
+  }
+
   void submitRoute() async {
     if (!_formKey.currentState!.validate()) return;
     
+    if (frecuenciaSeleccionada == 'puntual' && fechaPuntual == null) {
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("Debes seleccionar una fecha para tu viaje"), backgroundColor: Colors.red));
+      return;
+    }
+    if (frecuenciaSeleccionada == 'semanal' && diasSeleccionados.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("Debes seleccionar al menos un día de la semana"), backgroundColor: Colors.red));
+      return;
+    }
+
     if (selectedOriginLat == null || selectedDestLat == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text("Por favor, selecciona direcciones de la lista desplegable"), backgroundColor: Colors.orange),
-      );
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("Selecciona las direcciones de la lista desplegable"), backgroundColor: Colors.orange));
       return;
     }
 
     setState(() => isLoading = true);
 
-    // si no pulsó ninguna sugerencia en el origen o destino, lo buscamos ahora
     if (selectedOriginLat == null) {
       final fallbackOrigen = await ApiService.getAddressSuggestions(originController.text);
       if (fallbackOrigen.isNotEmpty) {
@@ -65,7 +114,7 @@ class _CreateRouteScreenState extends State<CreateRouteScreen> {
         selectedOriginLng = fallbackOrigen[0]['lng'];
       } else {
         setState(() => isLoading = false);
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("No se encuentra el Origen exacto. Prueba sin el número de calle."), backgroundColor: Colors.orange));
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("No se encuentra el Origen exacto."), backgroundColor: Colors.orange));
         return;
       }
     }
@@ -77,19 +126,25 @@ class _CreateRouteScreenState extends State<CreateRouteScreen> {
         selectedDestLng = fallbackDestino[0]['lng'];
       } else {
         setState(() => isLoading = false);
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("No se encuentra el Destino exacto en el mapa."), backgroundColor: Colors.orange));
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("No se encuentra el Destino exacto."), backgroundColor: Colors.orange));
         return;
       }
     }
 
     try {
-      List<String> prefsActivas = [];
-      if (prefSinConversar) prefsActivas.add("Sin conversar");
-      if (prefEquipaje) prefsActivas.add("Equipaje permitido");
-      if (prefMusica) prefsActivas.add("Música");
-      if (prefFumar) prefsActivas.add("Fumar permitido");
+      final String horaFormateada = "${horaSalida.hour.toString().padLeft(2, '0')}:${horaSalida.minute.toString().padLeft(2, '0')}:00";
+      
+      String daysOfWeek = "";
+      String travelDate = "";
 
-      // Mandamos la petición con las 4 coordenadas nuevas
+      if (frecuenciaSeleccionada == 'puntual') {
+        travelDate = DateFormat('yyyy-MM-dd').format(fechaPuntual!);
+        daysOfWeek = "Puntual";
+      } else {
+        daysOfWeek = diasSeleccionados.join(",");
+        travelDate = DateFormat('yyyy-MM-dd').format(DateTime.now()); 
+      }
+
       await ApiService.createRoute({
         "idDriver": widget.user['idUser'],
         "origin": originController.text.trim(),
@@ -98,30 +153,29 @@ class _CreateRouteScreenState extends State<CreateRouteScreen> {
         "destination": destinationController.text.trim(),
         "destinationLat": selectedDestLat,
         "destinationLng": selectedDestLng,
-        "departure_time": "${timeController.text.trim()}:00",
+        "departure_time": horaFormateada,
         "frequency": frecuenciaSeleccionada,
-        "available_seats": int.parse(seatsController.text.trim()),
+        "days_of_week": daysOfWeek,
+        "travel_date": travelDate,
+        "available_seats": plazas,
       });
 
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text("¡Ruta creada con éxito!"), backgroundColor: Colors.green),
-      );
-      Navigator.pop(context);
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("¡Ruta creada con éxito!"), backgroundColor: Colors.green));
+      Navigator.pop(context, true);
     } catch (e) {
       if (!mounted) return;
-      if (e.toString().contains("coche") || e.toString().contains("conductor")) {
+      if (e.toString().contains("coche") || e.toString().contains("conductor") || e.toString().contains("vehículo")) {
         _showRegisterCarDialog();
       } else {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text("Error: ${e.toString()}"), backgroundColor: Colors.red),
-        );
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("Error: ${e.toString()}"), backgroundColor: Colors.red));
       }
     } finally {
       if (mounted) setState(() => isLoading = false);
     }
   }
 
+  // diálogo registrar coche
   void _showRegisterCarDialog() {
     final plateController = TextEditingController();
     final modelController = TextEditingController();
@@ -142,7 +196,7 @@ class _CreateRouteScreenState extends State<CreateRouteScreen> {
         content: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Text("Para publicar una ruta, primero debes registrar tu vehículo en el sistema.", style: TextStyle(fontSize: 13, color: Colors.grey.shade700)),
+            Text("Para publicar una ruta, primero debes registrar tu vehículo.", style: TextStyle(fontSize: 13, color: Colors.grey.shade700)),
             SizedBox(height: 15),
             TextFormField(controller: plateController, decoration: _inputDeco("Matrícula (Ej: 1234ABC)", null)),
             SizedBox(height: 10),
@@ -152,10 +206,7 @@ class _CreateRouteScreenState extends State<CreateRouteScreen> {
           ],
         ),
         actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: Text("Cancelar", style: TextStyle(color: Colors.grey.shade600)),
-          ),
+          TextButton(onPressed: () => Navigator.pop(context), child: Text("Cancelar", style: TextStyle(color: Colors.grey.shade600))),
           ElevatedButton(
             style: ElevatedButton.styleFrom(backgroundColor: Color(0xFF49A09D), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8))),
             onPressed: () async {
@@ -181,47 +232,25 @@ class _CreateRouteScreenState extends State<CreateRouteScreen> {
     );
   }
 
-  Future<void> _seleccionarFecha() async {
-    DateTime? fechaElegida = await showDatePicker(context: context, initialDate: DateTime.now(), firstDate: DateTime.now(), lastDate: DateTime(2030));
-    if (fechaElegida != null) {
-      setState(() => dateController.text = "${fechaElegida.day.toString().padLeft(2, '0')}/${fechaElegida.month.toString().padLeft(2, '0')}/${fechaElegida.year}");
-    }
-  }
-
-  Future<void> _seleccionarHora() async {
-    TimeOfDay? horaElegida = await showTimePicker(context: context, initialTime: TimeOfDay.now());
-    if (horaElegida != null) {
-      setState(() => timeController.text = "${horaElegida.hour.toString().padLeft(2, '0')}:${horaElegida.minute.toString().padLeft(2, '0')}");
-    }
-  }
-
-  void _addPickupPoint() {
-    if (pickupController.text.trim().isNotEmpty) {
-      setState(() {
-        puntosRecogida.add(pickupController.text.trim());
-        pickupController.clear();
-        pickupSuggestions = [];
-      });
-    }
-  }
-
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Colors.grey.shade100,
       appBar: AppBar(
-        title: Text("Crear ruta", style: TextStyle(color: Colors.black, fontWeight: FontWeight.bold, fontSize: 20)),
+        title: Text("Publicar un viaje", style: TextStyle(color: Colors.black87, fontWeight: FontWeight.bold)),
         backgroundColor: Colors.white,
-        elevation: 1,
+        elevation: 0,
+        leading: BackButton(color: Colors.black87),
         centerTitle: true,
-        iconTheme: IconThemeData(color: Colors.black),
       ),
       body: SingleChildScrollView(
-        padding: EdgeInsets.all(15),
+        padding: EdgeInsets.all(20),
         child: Form(
           key: _formKey,
           child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
+              // trayecto
               _buildContainer(
                 title: "Recorrido",
                 child: Column(
@@ -231,29 +260,33 @@ class _CreateRouteScreenState extends State<CreateRouteScreen> {
                     SizedBox(height: 5),
                     TextFormField(
                       controller: originController,
-                      decoration: _inputDeco("Desde dónde sales?", Icon(Icons.circle, color: Colors.blue.shade600, size: 16)),
+                      decoration: _inputDeco("¿Desde dónde sales?", Icon(Icons.radio_button_checked, color: Colors.blue.shade600)),
                       validator: (v) => v!.isEmpty ? "Obligatorio" : null,
                       onChanged: (val) async {
-                        final sug = await ApiService.getAddressSuggestions(val);
-                        setState(() => originSuggestions = sug);
+                        if (_debounce?.isActive ?? false) _debounce!.cancel();
+                        _debounce = Timer(Duration(milliseconds: 600), () async {
+                          final sug = await ApiService.getAddressSuggestions(val);
+                          if (mounted) setState(() => originSuggestions = sug);
+                        });
                       },
                     ),
                     if (originSuggestions.isNotEmpty) _buildSuggestions(originSuggestions, originController, (lat, lng) {
                       selectedOriginLat = lat;
                       selectedOriginLng = lng;
                     }),
-                    
                     SizedBox(height: 15),
-                    
                     Text("Destino", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
                     SizedBox(height: 5),
                     TextFormField(
                       controller: destinationController,
-                      decoration: _inputDeco("A dónde vas?", Icon(Icons.location_on, color: Colors.red, size: 20)),
+                      decoration: _inputDeco("¿A dónde vas?", Icon(Icons.location_on, color: Colors.red)),
                       validator: (v) => v!.isEmpty ? "Obligatorio" : null,
                       onChanged: (val) async {
-                        final sug = await ApiService.getAddressSuggestions(val);
-                        setState(() => destinationSuggestions = sug);
+                        if (_debounce?.isActive ?? false) _debounce!.cancel();
+                        _debounce = Timer(Duration(milliseconds: 600), () async {
+                          final sug = await ApiService.getAddressSuggestions(val);
+                          if (mounted) setState(() => destinationSuggestions = sug);
+                        });
                       },
                     ),
                     if (destinationSuggestions.isNotEmpty) _buildSuggestions(destinationSuggestions, destinationController, (lat, lng) {
@@ -263,88 +296,158 @@ class _CreateRouteScreenState extends State<CreateRouteScreen> {
                   ],
                 ),
               ),
+              
               SizedBox(height: 15),
 
+              // frecuencia y calendario
               _buildContainer(
-                title: "Fecha y hora",
-                child: Row(
+                title: "¿Cuándo viajas?",
+                child: Column(
                   children: [
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
+                    Container(
+                      decoration: BoxDecoration(color: Colors.grey.shade100, borderRadius: BorderRadius.circular(12)),
+                      child: Row(
                         children: [
-                          Text("Fecha de inicio", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
-                          SizedBox(height: 5),
-                          TextFormField(
-                            controller: dateController, readOnly: true, onTap: _seleccionarFecha,
-                            decoration: _inputDeco("DD/MM/AAAA", Icon(Icons.calendar_today, size: 18)),
-                            validator: (v) => v!.isEmpty ? "Obligatorio" : null,
+                          Expanded(
+                            child: GestureDetector(
+                              onTap: () => setState(() => frecuenciaSeleccionada = 'puntual'),
+                              child: Container(
+                                padding: EdgeInsets.symmetric(vertical: 12),
+                                decoration: BoxDecoration(
+                                  color: frecuenciaSeleccionada == 'puntual' ? Color(0xFF49A09D) : Colors.transparent,
+                                  borderRadius: BorderRadius.circular(12),
+                                ),
+                                child: Center(child: Text("Un día concreto", style: TextStyle(color: frecuenciaSeleccionada == 'puntual' ? Colors.white : Colors.grey.shade600, fontWeight: FontWeight.bold))),
+                              ),
+                            ),
+                          ),
+                          Expanded(
+                            child: GestureDetector(
+                              onTap: () => setState(() => frecuenciaSeleccionada = 'semanal'),
+                              child: Container(
+                                padding: EdgeInsets.symmetric(vertical: 12),
+                                decoration: BoxDecoration(
+                                  color: frecuenciaSeleccionada == 'semanal' ? Color(0xFF49A09D) : Colors.transparent,
+                                  borderRadius: BorderRadius.circular(12),
+                                ),
+                                child: Center(child: Text("Viaje recurrente", style: TextStyle(color: frecuenciaSeleccionada == 'semanal' ? Colors.white : Colors.grey.shade600, fontWeight: FontWeight.bold))),
+                              ),
+                            ),
                           ),
                         ],
                       ),
                     ),
-                    SizedBox(width: 15),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text("Hora", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
-                          SizedBox(height: 5),
-                          TextFormField(
-                            controller: timeController, readOnly: true, onTap: _seleccionarHora,
-                            decoration: _inputDeco("00:00", Icon(Icons.access_time, size: 18)),
-                            validator: (v) => v!.isEmpty ? "Obligatorio" : null,
+                    SizedBox(height: 15),
+                    if (frecuenciaSeleccionada == 'puntual')
+                      InkWell(
+                        onTap: () => _seleccionarFecha(context),
+                        borderRadius: BorderRadius.circular(12),
+                        child: Container(
+                          padding: EdgeInsets.all(16),
+                          decoration: BoxDecoration(border: Border.all(color: Colors.grey.shade300), borderRadius: BorderRadius.circular(12)),
+                          child: Row(
+                            children: [
+                              Icon(Icons.calendar_month, color: Color(0xFF5F2C82)),
+                              SizedBox(width: 15),
+                              Text(fechaPuntual == null ? "Selecciona la fecha" : DateFormat('dd / MM / yyyy').format(fechaPuntual!), style: TextStyle(fontSize: 16)),
+                            ],
                           ),
-                        ],
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              SizedBox(height: 15),
-
-              _buildContainer(
-                title: "Detalles del viaje",
-                child: Row(
-                  children: [
-                    Expanded(
-                      child: Column(
+                        ),
+                      )
+                    else
+                      Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Text("Plazas disponibles", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
-                          SizedBox(height: 5),
-                          TextFormField(
-                            controller: seatsController, keyboardType: TextInputType.number,
-                            decoration: _inputDeco("Nº", Icon(Icons.event_seat, size: 18)),
-                            validator: (v) => v!.isEmpty ? "Obligatorio" : null,
-                          ),
-                        ],
-                      ),
-                    ),
-                    SizedBox(width: 15),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text("Frecuencia de viaje", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
-                          SizedBox(height: 5),
-                          DropdownButtonFormField<String>(
-                            initialValue: frecuenciaSeleccionada,
-                            decoration: _inputDeco("", null),
-                            icon: Icon(Icons.keyboard_arrow_down, size: 20),
-                            items: opcionesFrecuencia.map((String valor) {
-                              return DropdownMenuItem<String>(value: valor, child: Text(valor, style: TextStyle(fontSize: 14)));
+                          Text("Selecciona los días:", style: TextStyle(color: Colors.grey.shade700)),
+                          SizedBox(height: 10),
+                          Wrap(
+                            spacing: 10,
+                            children: diasSemana.map((dia) {
+                              final bool seleccionado = diasSeleccionados.contains(dia);
+                              return FilterChip(
+                                label: Text(dia, style: TextStyle(color: seleccionado ? Colors.white : Colors.black87, fontWeight: FontWeight.bold)),
+                                selected: seleccionado,
+                                selectedColor: Color(0xFF5F2C82),
+                                backgroundColor: Colors.grey.shade200,
+                                onSelected: (bool selected) {
+                                  setState(() {
+                                    if (selected) {
+                                      diasSeleccionados.add(dia);
+                                    } else {
+                                      diasSeleccionados.remove(dia);
+                                    }
+                                  });
+                                },
+                              );
                             }).toList(),
-                            onChanged: (val) => setState(() => frecuenciaSeleccionada = val!),
                           ),
                         ],
+                      ),
+                  ],
+                ),
+              ),
+
+              SizedBox(height: 15),
+
+              // detalles
+              _buildContainer(
+                title: "Detalles",
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: InkWell(
+                        onTap: () => _seleccionarHora(context),
+                        child: Container(
+                          padding: EdgeInsets.all(16),
+                          decoration: BoxDecoration(border: Border.all(color: Colors.grey.shade300), borderRadius: BorderRadius.circular(12)),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text("Hora de salida", style: TextStyle(color: Colors.grey.shade600, fontSize: 12)),
+                              SizedBox(height: 5),
+                              Row(
+                                children: [
+                                  Icon(Icons.access_time, size: 18, color: Color(0xFF49A09D)),
+                                  SizedBox(width: 10),
+                                  Text(horaSalida.format(context), style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+                                ],
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ),
+                    SizedBox(width: 15),
+                    Expanded(
+                      child: Container(
+                        padding: EdgeInsets.all(6),
+                        decoration: BoxDecoration(border: Border.all(color: Colors.grey.shade300), borderRadius: BorderRadius.circular(12)),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Padding(
+                              padding: const EdgeInsets.only(left: 10, top: 4),
+                              child: Text("Asientos libres", style: TextStyle(color: Colors.grey.shade600, fontSize: 12)),
+                            ),
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                              children: [
+                                IconButton(icon: Icon(Icons.remove_circle_outline), onPressed: plazas > 1 ? () => setState(() => plazas--) : null, color: Colors.red.shade300),
+                                Text("$plazas", style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                                IconButton(icon: Icon(Icons.add_circle_outline), onPressed: plazas < 6 ? () => setState(() => plazas++) : null, color: Colors.green.shade400),
+                              ],
+                            ),
+                          ],
+                        ),
                       ),
                     ),
                   ],
                 ),
               ),
+
               SizedBox(height: 15),
 
+              // puntos recogida
               _buildContainer(
                 title: "Puntos de recogida (opcional)",
                 child: Column(
@@ -357,13 +460,12 @@ class _CreateRouteScreenState extends State<CreateRouteScreen> {
                             controller: pickupController,
                             decoration: _inputDeco("Añadir dirección...", Icon(Icons.add_location_alt, size: 18)),
                             onChanged: (val) {
-    if (_debounce?.isActive ?? false) _debounce!.cancel();
-    
-    _debounce = Timer(Duration(milliseconds: 600), () async {
-      final sug = await ApiService.getAddressSuggestions(val);
-      if (mounted) setState(() => pickupSuggestions = sug);
-    });
-  },
+                              if (_debounce?.isActive ?? false) _debounce!.cancel();
+                              _debounce = Timer(Duration(milliseconds: 600), () async {
+                                final sug = await ApiService.getAddressSuggestions(val);
+                                if (mounted) setState(() => pickupSuggestions = sug);
+                              });
+                            },
                           ),
                         ),
                         SizedBox(width: 10),
@@ -394,8 +496,8 @@ class _CreateRouteScreenState extends State<CreateRouteScreen> {
                   ],
                 ),
               ),
-              SizedBox(height: 15),
 
+              // preferencias
               _buildContainer(
                 title: "Preferencias del viaje",
                 child: Column(
@@ -407,8 +509,10 @@ class _CreateRouteScreenState extends State<CreateRouteScreen> {
                   ],
                 ),
               ),
-              SizedBox(height: 15),
 
+              SizedBox(height: 30),
+
+              // información
               Container(
                 padding: EdgeInsets.all(15),
                 decoration: BoxDecoration(
@@ -430,22 +534,24 @@ class _CreateRouteScreenState extends State<CreateRouteScreen> {
                   ],
                 ),
               ),
+
               SizedBox(height: 25),
 
+              // botón publicar
               isLoading
-                  ? Center(child: CircularProgressIndicator())
-                  : SizedBox(
-                      width: double.infinity,
-                      child: ElevatedButton(
-                        onPressed: submitRoute,
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: Color(0xFF5F2C82), 
-                          padding: EdgeInsets.symmetric(vertical: 16),
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                        ),
-                        child: Text("Publicar Ruta", style: TextStyle(fontSize: 16, color: Colors.white, fontWeight: FontWeight.bold)),
+                ? Center(child: CircularProgressIndicator())
+                : SizedBox(
+                    width: double.infinity,
+                    child: ElevatedButton(
+                      onPressed: submitRoute,
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Color(0xFF5F2C82), 
+                        padding: EdgeInsets.symmetric(vertical: 16),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                       ),
+                      child: Text("Publicar Ruta", style: TextStyle(fontSize: 16, color: Colors.white, fontWeight: FontWeight.bold)),
                     ),
+                  ),
               SizedBox(height: 30),
             ],
           ),
@@ -454,15 +560,16 @@ class _CreateRouteScreenState extends State<CreateRouteScreen> {
     );
   }
 
+  // widgets reutilizables
   Widget _buildContainer({required String title, required Widget child}) {
     return Container(
       width: double.infinity,
-      padding: EdgeInsets.all(15),
-      decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(12), border: Border.all(color: Colors.grey.shade300)),
+      padding: EdgeInsets.all(18),
+      decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(12), border: Border.all(color: Colors.grey.shade200)),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(title, style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.black87)),
+          Text(title, style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Color(0xFF5F2C82))),
           SizedBox(height: 15),
           child,
         ],
@@ -485,7 +592,7 @@ class _CreateRouteScreenState extends State<CreateRouteScreen> {
   Widget _buildSuggestions(List<Map<String, dynamic>> list, TextEditingController controller, Function(double, double) onSelect) {
     return Container(
       margin: EdgeInsets.only(top: 5),
-      decoration: BoxDecoration(border: Border.all(color: Colors.grey.shade200), borderRadius: BorderRadius.circular(8)),
+      decoration: BoxDecoration(border: Border.all(color: Colors.grey.shade200), borderRadius: BorderRadius.circular(8), color: Colors.white),
       child: ListView.builder(
         shrinkWrap: true,
         physics: NeverScrollableScrollPhysics(),

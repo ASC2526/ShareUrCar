@@ -5,6 +5,7 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
+import java.time.LocalDateTime;
 import java.util.List;
 
 public interface RouteRepository extends JpaRepository<Route, Integer> {
@@ -41,4 +42,13 @@ public interface RouteRepository extends JpaRepository<Route, Integer> {
         WHERE rp.id_user = :userId
         """, nativeQuery = true)
     List<Route> findMyRoutes(@Param("userId") Integer userId);
+
+    @Query("SELECT COUNT(r) " +
+            "FROM Route r " +
+            "WHERE r.idDriver = :userId " +
+            "AND r.status = 'COMPLETED'")
+    long countCompletedRoutesByDriverId(@Param("userId") Integer userId);
+
+    @Query("SELECT r FROM Route r WHERE r.status = 'PENDING' AND r.arrival_time < :now")
+    List<Route> findPendingRoutesWhereArrivalTimePassed(@Param("now") LocalDateTime now);
 }

@@ -6,6 +6,7 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
 import java.util.List;
+import java.util.Optional;
 
 public interface GroupPassengerRepository extends JpaRepository<GroupPassenger, Integer> {
     @Query("""
@@ -32,5 +33,9 @@ public interface GroupPassengerRepository extends JpaRepository<GroupPassenger, 
             @Param("groupId") Integer groupId,
             @Param("userId") Integer userId
     );
+
+    Optional<GroupPassenger> findByIdGroupAndIdUser(Integer idGroup, Integer idUser);
+
+    List<GroupPassenger> findByIdGroup(Integer idGroup);
 
 }

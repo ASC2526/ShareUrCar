@@ -5,6 +5,7 @@ import org.springframework.data.jpa.repository.*;
 import org.springframework.data.repository.query.Param;
 
 import java.util.List;
+import java.util.Optional;
 
 public interface TravelGroupRepository extends JpaRepository<TravelGroup, Integer> {
 
@@ -14,4 +15,6 @@ public interface TravelGroupRepository extends JpaRepository<TravelGroup, Intege
         WHERE tg.idRoute = :routeId
     """)
     List<TravelGroup> findByRouteId(@Param("routeId") Integer routeId);
+
+    Optional<TravelGroup> findByIdRoute(Integer idRoute);
 }

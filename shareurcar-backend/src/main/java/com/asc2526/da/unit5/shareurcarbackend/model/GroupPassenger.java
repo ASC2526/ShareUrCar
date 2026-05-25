@@ -28,4 +28,7 @@ public class GroupPassenger {
 
     @NotBlank
     private String state;
+
+    @Column(name = "confirmed")
+    private boolean confirmed = false;
 }

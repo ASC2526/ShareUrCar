@@ -62,4 +62,11 @@ public class Route {
 
     @Min(1)
     private Integer available_seats;
+
+    @Column(name = "status")
+    private String status = "PENDING";
+
+    @Column(name = "driver_confirmed")
+    private boolean driverConfirmed = false;
+
 }

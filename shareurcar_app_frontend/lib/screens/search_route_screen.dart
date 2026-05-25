@@ -19,11 +19,9 @@ class _SearchRouteScreenState extends State<SearchRouteScreen> {
   final originController = TextEditingController();
   final destinationController = TextEditingController();
 
-  // AHORA SON LISTAS DE MAPAS PARA GUARDAR LAS COORDENADAS
   List<Map<String, dynamic>> originSuggestions = [];
   List<Map<String, dynamic>> destinationSuggestions = [];
   
-  // VARIABLES PARA GUARDAR LA LAT Y LNG SELECCIONADA
   double? selectedOriginLat;
   double? selectedOriginLng;
   double? selectedDestLat;
@@ -32,6 +30,12 @@ class _SearchRouteScreenState extends State<SearchRouteScreen> {
   bool isLoading = false;
   Timer? _debounce;
   List<dynamic> rutasEncontradas = [];
+
+  @override
+  void dispose() {
+    _debounce?.cancel(); 
+    super.dispose();
+  }
 
   void buscarRutas() async {
     // Validamos que se hayan elegido opciones de la lista con coordenadas
@@ -70,7 +74,6 @@ class _SearchRouteScreenState extends State<SearchRouteScreen> {
     }
 
     try {
-      // Llamamos a la nueva función de búsqueda por radio geográfico
       final resultados = await ApiService.searchRoutes(
         selectedOriginLat!,
         selectedOriginLng!,
@@ -108,7 +111,7 @@ class _SearchRouteScreenState extends State<SearchRouteScreen> {
 
     showModalBottomSheet(
       context: context,
-      isScrollControlled: true, // Permite que el panel ocupe más espacio si hay muchos resultados
+      isScrollControlled: true, 
       backgroundColor: Colors.transparent,
       builder: (context) {
         return Container(
@@ -229,12 +232,11 @@ class _SearchRouteScreenState extends State<SearchRouteScreen> {
                                       InkWell(
                                         borderRadius: BorderRadius.circular(8),
                                         onTap: () async {
-                                          Navigator.pop(context); // Cierra el panel de resultados
+                                          Navigator.pop(context); 
                                           final seUnio = await Navigator.push(
                                             context, 
                                             MaterialPageRoute(builder: (_) => RouteDetailsScreen(ruta: ruta, user: widget.user))
                                           );
-                                          // Si se une desde la pantalla de detalles y vuelve, salimos al Home
                                           if (seUnio == true && mounted) {
                                             Navigator.pop(context);
                                           }
@@ -245,7 +247,7 @@ class _SearchRouteScreenState extends State<SearchRouteScreen> {
                                             children: [
                                               CircleAvatar(
                                                 radius: 16,
-                                                backgroundColor: Color(0xFF5F2C82).withOpacity(0.1),
+                                                backgroundColor: Color(0xFF5F2C82).withValues(),
                                                 child: Icon(Icons.person, size: 18, color: Color(0xFF5F2C82)),
                                               ),
                                               SizedBox(width: 10),
@@ -336,15 +338,13 @@ class _SearchRouteScreenState extends State<SearchRouteScreen> {
                   controller: originController,
                   decoration: _inputDeco("Origen", Icon(Icons.circle, color: Colors.blue.shade600, size: 16)),
                   onChanged: (val) {
-    if (_debounce?.isActive ?? false) _debounce!.cancel(); // Si sigue escribiendo, cancela el contador
-    
-    _debounce = Timer(Duration(milliseconds: 600), () async { // Espera 600ms
-      final sug = await ApiService.getAddressSuggestions(val);
-      if (mounted) setState(() => originSuggestions = sug);
-    });
-  },
+                    if (_debounce?.isActive ?? false) _debounce!.cancel(); 
+                      _debounce = Timer(Duration(milliseconds: 600), () async { 
+                        final sug = await ApiService.getAddressSuggestions(val);
+                        if (mounted) setState(() => originSuggestions = sug);
+                      });
+                    },
                 ),
-                // Pasamos una función para guardar lat/lng al tocar
                 if (originSuggestions.isNotEmpty) _buildSuggestions(originSuggestions, originController, (lat, lng) {
                   selectedOriginLat = lat;
                   selectedOriginLng = lng;
@@ -355,14 +355,13 @@ class _SearchRouteScreenState extends State<SearchRouteScreen> {
                 TextFormField(
                   controller: destinationController,
                   decoration: _inputDeco("Destino", Icon(Icons.location_on, color: Colors.red, size: 20)),
-  onChanged: (val) {
-    if (_debounce?.isActive ?? false) _debounce!.cancel();
-    
-    _debounce = Timer(Duration(milliseconds: 600), () async {
-      final sug = await ApiService.getAddressSuggestions(val);
-      if (mounted) setState(() => destinationSuggestions = sug);
-    });
-  },
+                  onChanged: (val) {
+                    if (_debounce?.isActive ?? false) _debounce!.cancel();
+                    _debounce = Timer(Duration(milliseconds: 600), () async {
+                      final sug = await ApiService.getAddressSuggestions(val);
+                      if (mounted) setState(() => destinationSuggestions = sug);
+                    });
+                  },
                 ),
                 if (destinationSuggestions.isNotEmpty) _buildSuggestions(destinationSuggestions, destinationController, (lat, lng) {
                   selectedDestLat = lat;
@@ -388,17 +387,25 @@ class _SearchRouteScreenState extends State<SearchRouteScreen> {
               ],
             ),
           ),
-
           Expanded(
             child: FlutterMap(
               options: MapOptions(
-                initialCenter: LatLng(38.3452, -0.4810), 
-                initialZoom: 12.0,
+                initialCenter: LatLng(38.3452, -0.4810), // centrado en Alicante
+                initialZoom: 13.0,
+                // para que no se pueda scrollear por todo el mundo
+                cameraConstraint: CameraConstraint.contain(
+                  bounds: LatLngBounds(
+                    LatLng(37.5, -1.5), 
+                    LatLng(39.0, 0.5), 
+                  ),
+                ),
               ),
               children: [
                 TileLayer(
-                  urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
-                  userAgentPackageName: 'com.asc2526.shareurcar',
+                  urlTemplate: 'https://api.mapbox.com/styles/v1/mapbox/streets-v12/tiles/256/{z}/{x}/{y}@2x?access_token=pk.eyJ1IjoiYWxlc2FuY29yNyIsImEiOiJjbXBsaXBmd2IwNGp5MnRxdWZkM3V5MWp3In0.7UFrSYwmDI3Cq9dA-cgeyA',
+                  additionalOptions: const {
+                    'accessToken': 'pk.eyJ1IjoiYWxlc2FuY29yNyIsImEiOiJjbXBsaXBmd2IwNGp5MnRxdWZkM3V5MWp3In0.7UFrSYwmDI3Cq9dA-cgeyA',
+                  },
                 ),
               ],
             ),
@@ -419,7 +426,6 @@ class _SearchRouteScreenState extends State<SearchRouteScreen> {
     );
   }
 
-  // Ahora recibe la lista de mapas y un callback para guardar las coordenadas
   Widget _buildSuggestions(List<Map<String, dynamic>> list, TextEditingController controller, Function(double, double) onSelect) {
     return Container(
       constraints: BoxConstraints(maxHeight: 150),
@@ -434,7 +440,7 @@ class _SearchRouteScreenState extends State<SearchRouteScreen> {
           title: Text(list[idx]['name'], style: TextStyle(fontSize: 12)),
           onTap: () => setState(() {
             controller.text = list[idx]['name'];
-            onSelect(list[idx]['lat'], list[idx]['lng']); // Guardamos las coordenadas
+            onSelect(list[idx]['lat'], list[idx]['lng']); 
             list.clear();
           }),
         ),

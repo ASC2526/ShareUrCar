@@ -4,9 +4,11 @@ import com.asc2526.da.unit5.shareurcarbackend.exception.AlreadyExistsException;
 import com.asc2526.da.unit5.shareurcarbackend.model.Driver;
 import com.asc2526.da.unit5.shareurcarbackend.repository.DriverRepository;
 import com.asc2526.da.unit5.shareurcarbackend.repository.UserRepository;
+import jakarta.transaction.Transactional;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
+import java.util.Map;
 
 @Service
 public class DriverService {
@@ -36,5 +38,40 @@ public class DriverService {
         }
 
         return driverRepository.save(driver);
+    }
+
+    @Transactional
+    public void updateDriver(Integer userId, Map<String, Object> updates) {
+        Driver driver = driverRepository.findByIdDriver(userId)
+                .orElse(new Driver());
+
+        if (driver.getIdDriver() == null) {
+            driver.setIdDriver(userId);
+        }
+
+        if (updates.containsKey("carModel")) {
+            String val = (String) updates.get("carModel");
+            if (val != null && !val.isEmpty()) driver.setCarModel(val);
+        }
+
+        if (updates.containsKey("carColor")) {
+            driver.setCarColor((String) updates.get("carColor"));
+        }
+
+        if (updates.containsKey("carPlate")) {
+            String val = (String) updates.get("carPlate");
+            if (val != null && !val.isEmpty()) driver.setCarPlate(val);
+        }
+
+        if (updates.containsKey("maxSeats")) {
+            Object seats = updates.get("maxSeats");
+            if (seats instanceof Integer) {
+                driver.setMaxSeats((Integer) seats);
+            } else if (seats instanceof String) {
+                driver.setMaxSeats(Integer.parseInt((String) seats));
+            }
+        }
+
+        driverRepository.save(driver);
     }
 }

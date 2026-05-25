@@ -6,9 +6,11 @@ import com.asc2526.da.unit5.shareurcarbackend.model.Review;
 import com.asc2526.da.unit5.shareurcarbackend.model.User;
 import com.asc2526.da.unit5.shareurcarbackend.repository.ReviewRepository;
 import com.asc2526.da.unit5.shareurcarbackend.repository.UserRepository;
+import jakarta.transaction.Transactional;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
+import java.util.Map;
 
 @Service
 public class UserService {
@@ -47,19 +49,40 @@ public class UserService {
         userRepository.deleteUserByIdUser(id);
     }
 
-    public User updateUser(Integer id, User userDetails) {
-
-        User user = getUserById(id);
-
-        if (!user.getEmail().equals(userDetails.getEmail()) &&
-                userRepository.existsByEmail(userDetails.getEmail())) {
-            throw new AlreadyExistsException("Email ya en uso");
+    @Transactional
+    public User updateUser(Integer id, Map<String, Object> updates) {
+        if (updates == null || updates.isEmpty()) {
+            throw new IllegalArgumentException("No se enviaron datos para actualizar");
         }
 
-        user.setFirstname(userDetails.getFirstname());
-        user.setLastname(userDetails.getLastname());
-        user.setEmail(userDetails.getEmail());
-        user.setPassword(userDetails.getPassword());
+        User user = userRepository.findUserByIdUser(id)
+                .orElseThrow(() -> new UserNotFoundException(id));
+
+        if (updates.containsKey("firstname")) {
+            String fn = (String) updates.get("firstname");
+            if (fn == null || fn.isEmpty())
+                throw new IllegalArgumentException("El nombre no puede estar vacío");
+            user.setFirstname(fn);
+        }
+
+        if (updates.containsKey("lastname")) user.setLastname((String) updates.get("lastname"));
+
+        if (updates.containsKey("email")) {
+            String newEmail = (String) updates.get("email");
+            if (newEmail == null || newEmail.isEmpty())
+                throw new IllegalArgumentException("El email es obligatorio");
+            if (!user.getEmail().equals(newEmail) && userRepository.existsByEmail(newEmail)) {
+                throw new AlreadyExistsException("Email ya en uso");
+            }
+            user.setEmail(newEmail);
+        }
+
+        if (updates.containsKey("phone"))
+            user.setPhone((String) updates.get("phone"));
+        if (updates.containsKey("aboutMe"))
+            user.setAboutMe((String) updates.get("aboutMe"));
+        if (updates.containsKey("profile_photo"))
+            user.setProfile_photo((String) updates.get("profile_photo"));
 
         return userRepository.save(user);
     }

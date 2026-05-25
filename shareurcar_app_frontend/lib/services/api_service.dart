@@ -89,32 +89,30 @@ class ApiService {
     }
   }
 
-  static Future<List<Map<String, dynamic>>> getAddressSuggestions(String query) async {
-    if (query.trim().length < 3) return [];
-    
-    // forzamos la búsqueda en Alicante si el usuario no lo ha escrito
-    String searchQuery = query;
-    if (!query.toLowerCase().contains("alicante")) {
-      searchQuery = "$query, Alicante";
-    }
+  static const String mapboxToken = "pk.eyJ1IjoiYWxlc2FuY29yNyIsImEiOiJjbXBsaXBmd2IwNGp5MnRxdWZkM3V5MWp3In0.7UFrSYwmDI3Cq9dA-cgeyA";
 
-    final url = Uri.parse("https://nominatim.openstreetmap.org/search?q=${Uri.encodeComponent(searchQuery)}&format=json&limit=5&addressdetails=1&countrycodes=es");
+  static Future<List<Map<String, dynamic>>> getAddressSuggestions(String query) async {
+    if (query.length < 3) return []; 
+
+    final url = Uri.parse(
+        "https://api.mapbox.com/geocoding/v5/mapbox.places/${Uri.encodeComponent(query)}.json?country=es&proximity=-0.4810,38.3452&types=poi,address,place&access_token=$mapboxToken&limit=5");
 
     try {
-final response = await http.get(url, headers: {
-  'User-Agent': 'ShareUrCarApp_Project/1.0' 
-});
-
+      final response = await http.get(url);
       if (response.statusCode == 200) {
-        final List data = json.decode(response.body);
-        return data.map((item) => {
-          "name": item['display_name'].toString(),
-          "lat": double.parse(item['lat']),
-          "lng": double.parse(item['lon']),
+        final data = json.decode(response.body);
+        final List features = data['features'] ?? [];
+        
+        return features.map((f) {
+          return {
+            'name': f['place_name'],
+            'lng': f['center'][0],
+            'lat': f['center'][1],
+          };
         }).toList();
       }
     } catch (e) {
-      print("Error en autocompletado: $e");
+      print("Error en Mapbox: $e");
     }
     return [];
   }
@@ -161,5 +159,102 @@ final response = await http.get(url, headers: {
       throw Exception("Error al cargar las reseñas");
     }
   }
+
+  static Future<void> leaveRoute(int routeId, int userId) async {
+    final url = Uri.parse("$baseUrl/routes/$routeId/leave/$userId");
+    final response = await http.delete(url);
+    
+    if (response.statusCode != 200) {
+      try {
+        final errorBody = json.decode(response.body);
+        throw Exception(errorBody['error'] ?? "Error desconocido al abandonar");
+      } catch (e) {
+        throw Exception("Error al abandonar la ruta");
+      }
+    }
+  }
+
+  static Future<void> deleteRoute(int routeId) async {
+    final url = Uri.parse("$baseUrl/routes/$routeId");
+    final response = await http.delete(url);
+    
+    if (response.statusCode != 200 && response.statusCode != 204) {
+      throw Exception("Error al cancelar la ruta");
+    }
+  }
+
+  // buscador especializado en centros educativos
+  static Future<List<Map<String, dynamic>>> getCenterSuggestions(String query) async {
+    if (query.length < 3) return [];
+
+    // restringimos la búsqueda a colegios/institutos/universidades
+    final url = Uri.parse(
+        "https://api.mapbox.com/geocoding/v5/mapbox.places/${Uri.encodeComponent(query)}.json?country=es&types=poi&poi_category=education&access_token=$mapboxToken&limit=5");
+
+    try {
+      final response = await http.get(url);
+      if (response.statusCode == 200) {
+        final data = json.decode(response.body);
+        final List features = data['features'] ?? [];
+        return features.map((f) => {'name': f['place_name']}).toList();
+      }
+    } catch (e) {
+      print("Error buscando centros: $e");
+    }
+    return [];
+  }
+
+  static Future<bool> updateUserProfile(Map<String, dynamic> data, int userId) async {
+    final url = Uri.parse("$baseUrl/users/$userId");
+  
+    final response = await http.put(
+      url,
+      headers: {"Content-Type": "application/json"},
+      body: json.encode(data),
+    );
+
+    return response.statusCode == 200;
+  }
+
+  static Future<Map<String, dynamic>> getUserById(int userId) async {
+    final response = await http.get(Uri.parse("$baseUrl/users/$userId"));
+    if (response.statusCode == 200) {
+      return json.decode(response.body);
+    } else {
+      throw Exception("No se pudo obtener el usuario");
+    }
+  }
+
+  static Future<int> getCompletedTripsCount(int userId) async {
+    final url = Uri.parse("$baseUrl/routes/completed-count/$userId");
+    final response = await http.get(url);
+    if (response.statusCode == 200) {
+      return int.parse(response.body); 
+    }
+    return 0;
+  }
+
+  static Future<void> completeRoute(int routeId) async {
+    final url = Uri.parse("$baseUrl/routes/$routeId/complete");
+    
+    final response = await http.patch(
+      url,
+      headers: {"Content-Type": "application/json"},
+    );
+
+    if (response.statusCode != 200) {
+      throw Exception("Error al completar el viaje: ${response.body}");
+    }
+  }
+
+  static Future<void> confirmParticipation(int routeId, int userId) async {
+    final url = Uri.parse("$baseUrl/routes/$routeId/confirm/$userId");
+    final response = await http.patch(url); // Usamos PATCH porque es una confirmación
+
+    if (response.statusCode != 200) {
+      throw Exception("Error al confirmar: ${response.body}");
+    }
+  }
+  
 
 }

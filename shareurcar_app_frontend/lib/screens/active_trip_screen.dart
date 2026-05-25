@@ -1,0 +1,288 @@
+import 'package:flutter/material.dart';
+import '../services/api_service.dart';
+
+class ActiveTripScreen extends StatefulWidget {
+  final Map<String, dynamic> ruta;
+  final Map user;
+
+  const ActiveTripScreen({super.key, required this.ruta, required this.user});
+
+  @override
+  _ActiveTripScreenState createState() => _ActiveTripScreenState();
+}
+
+class _ActiveTripScreenState extends State<ActiveTripScreen> {
+  bool isLoading = false;
+
+  void abandonarRuta() async {
+    bool? confirmar = await showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text("¿Abandonar viaje?"),
+        content: Text("Estás a punto de cancelar tu plaza en este viaje. ¿Estás seguro?"),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(context, false), child: Text("Cancelar")),
+          TextButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: Text("Sí, abandonar", style: TextStyle(color: Colors.red, fontWeight: FontWeight.bold)),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmar != true) return;
+
+    setState(() => isLoading = true);
+    try {
+      final routeId = widget.ruta['id_route'] ?? widget.ruta['idRoute'] ?? widget.ruta['id'];
+      final userId = widget.user['idUser'] ?? widget.user['id_user'] ?? widget.user['id'];
+
+      await ApiService.leaveRoute(int.parse(routeId.toString()), int.parse(userId.toString()));
+
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text("Has abandonado la ruta correctamente"), backgroundColor: Colors.orange),
+      );
+      Navigator.pop(context, true);
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(e.toString().replaceAll("Exception: ", "")), backgroundColor: Colors.red),
+      );
+    } finally {
+      if (mounted) setState(() => isLoading = false);
+    }
+  }
+
+  void finalizarRuta() async {
+    bool? confirmar = await showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text("¿Finalizar viaje?"),
+        content: Text("Al confirmar, el viaje se marcará como terminado. ¿Es correcto?"),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(context, false), child: Text("Volver")),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(context, true),
+            style: ElevatedButton.styleFrom(backgroundColor: Colors.green),
+            child: Text("Sí, finalizar", style: TextStyle(color: Colors.white)),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmar != true) return;
+
+    setState(() => isLoading = true);
+    try {
+      final routeId = widget.ruta['id_route'] ?? widget.ruta['idRoute'] ?? widget.ruta['id'];
+      await ApiService.completeRoute(int.parse(routeId.toString()));
+
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text("Viaje finalizado con éxito"), backgroundColor: Colors.green),
+      );
+      Navigator.pop(context, true);
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text("Error: $e"), backgroundColor: Colors.red),
+      );
+    } finally {
+      if (mounted) setState(() => isLoading = false);
+    }
+  }
+
+  void cancelarRuta() async {
+    bool? confirmar = await showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text("¿Cancelar ruta completa?"),
+        content: Text("Eres el conductor. Si cancelas esta ruta, se avisará a los pasajeros. ¿Estás seguro?"),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(context, false), child: Text("Volver")),
+          TextButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: Text("Sí, cancelar ruta", style: TextStyle(color: Colors.red, fontWeight: FontWeight.bold)),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmar != true) return;
+
+    setState(() => isLoading = true);
+    try {
+      final routeId = widget.ruta['id_route'] ?? widget.ruta['idRoute'] ?? widget.ruta['id'];
+      await ApiService.deleteRoute(int.parse(routeId.toString()));
+
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text("Ruta cancelada correctamente"), backgroundColor: Colors.orange),
+      );
+      Navigator.pop(context, true);
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text("Error al cancelar la ruta"), backgroundColor: Colors.red),
+      );
+    } finally {
+      if (mounted) setState(() => isLoading = false);
+    }
+  }
+
+  void confirmarLlegada() async {
+    final routeId = widget.ruta['id_route'] ?? widget.ruta['idRoute'] ?? widget.ruta['id'];
+    final userId = widget.user['idUser'] ?? widget.user['id_user'] ?? widget.user['id'];
+
+    setState(() => isLoading = true);
+    try {
+      await ApiService.confirmParticipation(int.parse(routeId.toString()), int.parse(userId.toString()));
+
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text("¡Confirmación enviada!"), backgroundColor: Colors.green),
+      );
+      Navigator.pop(context, true);
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("Error: $e"), backgroundColor: Colors.red));
+    } finally {
+      if (mounted) setState(() => isLoading = false);
+    }
+  }
+
+  void reportarIncidencia() {
+    final TextEditingController incidenciaController = TextEditingController();
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text("Reportar incidencia"),
+        content: TextField(
+            controller: incidenciaController,
+            decoration: InputDecoration(hintText: "Explica qué ha pasado...")),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx), child: Text("Cancelar")),
+          ElevatedButton(
+            onPressed: () async {
+              // await ApiService.reportIncident();
+              Navigator.pop(ctx);
+            },
+            child: Text("Enviar"),
+          ),
+        ],
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final bool esConductor = (widget.ruta['idDriver'] ?? widget.ruta['id_driver']) == (widget.user['idUser'] ?? widget.user['id_user']);
+
+    return Scaffold(
+      backgroundColor: Colors.grey.shade50,
+      appBar: AppBar(
+        title: Text("Gestión del Viaje", style: TextStyle(color: Colors.black87, fontWeight: FontWeight.bold)),
+        backgroundColor: Colors.white,
+        elevation: 0,
+        leading: BackButton(color: Colors.black87),
+        centerTitle: true,
+      ),
+      body: Padding(
+        padding: const EdgeInsets.all(20.0),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Container(
+              padding: EdgeInsets.all(20),
+              decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(16), border: Border.all(color: Colors.grey.shade200)),
+              child: Column(
+                children: [
+                  Row(
+                    children: [
+                      Icon(Icons.radio_button_checked, color: Colors.blue.shade600),
+                      SizedBox(width: 15),
+                      Expanded(child: Text(widget.ruta['origin'] ?? '', style: TextStyle(fontSize: 16))),
+                    ],
+                  ),
+                  Align(alignment: Alignment.centerLeft, child: Padding(padding: EdgeInsets.only(left: 11), child: Container(height: 20, width: 2, color: Colors.grey.shade300))),
+                  Row(
+                    children: [
+                      Icon(Icons.location_on, color: Colors.red),
+                      SizedBox(width: 15),
+                      Expanded(child: Text(widget.ruta['destination'] ?? '', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold))),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+            SizedBox(height: 30),
+            ListTile(
+              contentPadding: EdgeInsets.zero,
+              leading: CircleAvatar(backgroundColor: Color.fromRGBO(95, 44, 130, 0.1), child: Icon(Icons.chat, color: Color(0xFF5F2C82))),
+              title: Text("Chat del grupo", style: TextStyle(fontWeight: FontWeight.bold)),
+              subtitle: Text("Habla con el conductor y pasajeros"),
+              trailing: Icon(Icons.arrow_forward_ios, size: 16),
+              onTap: () {
+                ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("Chat en desarrollo...")));
+              },
+            ),
+            Divider(height: 40),
+            Spacer(),
+            Column(
+              children: [
+                SizedBox(
+                  width: double.infinity,
+                  child: ElevatedButton.icon(
+                    onPressed: isLoading ? null : confirmarLlegada,
+                    icon: Icon(Icons.check_circle, color: Colors.white),
+                    label: Text("confirmar", style: TextStyle(fontWeight: FontWeight.bold)),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.green,
+                      foregroundColor: Colors.white,
+                      padding: EdgeInsets.symmetric(vertical: 16),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                    ),
+                  ),
+                ),
+                SizedBox(height: 12),
+                SizedBox(
+                  width: double.infinity,
+                  child: OutlinedButton.icon(
+                    onPressed: isLoading ? null : reportarIncidencia,
+                    icon: Icon(Icons.warning_amber_rounded, color: Colors.orange),
+                    label: Text("incidencia", style: TextStyle(color: Colors.orange)),
+                    style: OutlinedButton.styleFrom(
+                      padding: EdgeInsets.symmetric(vertical: 16),
+                      side: BorderSide(color: Colors.orange),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                    ),
+                  ),
+                ),
+                SizedBox(height: 12),
+                SizedBox(
+                  width: double.infinity,
+                  child: OutlinedButton.icon(
+                    onPressed: isLoading ? null : (esConductor ? cancelarRuta : abandonarRuta),
+                    icon: Icon(esConductor ? Icons.delete_forever : Icons.exit_to_app, color: Colors.red),
+                    label: Text(esConductor ? "cancelar ruta" : "abandonar ruta"),
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: Colors.red,
+                      padding: EdgeInsets.symmetric(vertical: 16),
+                      side: BorderSide(color: Colors.red.shade200),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                    ),
+                  ),
+                ),
+                if (isLoading)
+                  Padding(
+                    padding: const EdgeInsets.only(top: 10),
+                    child: CircularProgressIndicator(),
+                  ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}

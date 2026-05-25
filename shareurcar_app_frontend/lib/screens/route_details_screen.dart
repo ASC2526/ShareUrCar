@@ -19,27 +19,24 @@ class _RouteDetailsScreenState extends State<RouteDetailsScreen> {
   void unirseARuta() async {
     setState(() => isLoading = true);
     try {
-      // 1. Buscamos el ID de la ruta en todos los formatos posibles que pueda enviar Spring Boot
+      // buscamos el ID de la ruta en todos los formatos posibles 
       var rawRouteId = widget.ruta['id_route'] ?? widget.ruta['idRoute'] ?? widget.ruta['id'];
-      // 2. Hacemos lo mismo con el ID del usuario
       var rawUserId = widget.user['idUser'] ?? widget.user['id_user'] ?? widget.user['id'];
 
-      // Si alguno sigue siendo nulo, lanzamos un error claro para saber qué falla
       if (rawRouteId == null) throw Exception("No se ha podido encontrar el ID de la ruta en la base de datos.");
       if (rawUserId == null) throw Exception("No se ha podido encontrar el ID de tu usuario.");
 
-      // 3. Los convertimos a 'int' de forma segura por si Spring Boot los manda como String
+      // los convertimos a int
       final int finalRouteId = rawRouteId is int ? rawRouteId : int.parse(rawRouteId.toString());
       final int finalUserId = rawUserId is int ? rawUserId : int.parse(rawUserId.toString());
 
-      // 4. Llamamos a la API con los IDs correctos
       await ApiService.joinRoute(finalRouteId, finalUserId);
       
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text("¡Te has unido a la ruta con éxito!"), backgroundColor: Colors.green),
       );
-      Navigator.pop(context, true); // Cerramos y devolvemos 'true' para refrescar
+      Navigator.pop(context, true); 
       
     } catch (e) {
       if (!mounted) return;
@@ -56,7 +53,6 @@ class _RouteDetailsScreenState extends State<RouteDetailsScreen> {
 
   @override
   Widget build(BuildContext context) {
-    // Si tienes lat/lng en la ruta, centramos el mapa ahí, si no, centro de Alicante
     final lat = widget.ruta['origin_lat'] ?? 38.3452;
     final lng = widget.ruta['origin_lng'] ?? -0.4810;
 
@@ -85,7 +81,7 @@ class _RouteDetailsScreenState extends State<RouteDetailsScreen> {
       body: Column(
         children: [
           // MAPA SUPERIOR
-          Container(
+          SizedBox(
             height: 250,
             width: double.infinity,
             child: FlutterMap(
@@ -119,7 +115,6 @@ class _RouteDetailsScreenState extends State<RouteDetailsScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  // Título principal con plazas
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
@@ -178,40 +173,40 @@ class _RouteDetailsScreenState extends State<RouteDetailsScreen> {
 
                   // BOTÓN UNIRSE
                   esMiRuta
-                      ? Container(
-                          width: double.infinity,
-                          padding: EdgeInsets.symmetric(vertical: 16),
-                          decoration: BoxDecoration(color: Colors.grey.shade200, borderRadius: BorderRadius.circular(12)),
-                          child: Text("Esta es tu ruta", textAlign: TextAlign.center, style: TextStyle(color: Colors.grey.shade600, fontSize: 16)),
-                        )
-                      : yaUnido
-                          ? Container(
-                              width: double.infinity,
-                              padding: EdgeInsets.symmetric(vertical: 16),
-                              decoration: BoxDecoration(color: Colors.green.shade50, borderRadius: BorderRadius.circular(12), border: Border.all(color: Colors.green.shade200)),
-                              child: Row(
-                                mainAxisAlignment: MainAxisAlignment.center,
-                                children: [
-                                  Icon(Icons.check_circle, color: Colors.green),
-                                  SizedBox(width: 10),
-                                  Text("Ya estás en esta ruta", style: TextStyle(color: Colors.green.shade700, fontSize: 16, fontWeight: FontWeight.w600)),
-                                ],
+                    ? Container(
+                        width: double.infinity,
+                        padding: EdgeInsets.symmetric(vertical: 16),
+                        decoration: BoxDecoration(color: Colors.grey.shade200, borderRadius: BorderRadius.circular(12)),
+                        child: Text("Esta es tu ruta", textAlign: TextAlign.center, style: TextStyle(color: Colors.grey.shade600, fontSize: 16)),
+                      )
+                    : yaUnido
+                        ? Container(
+                            width: double.infinity,
+                            padding: EdgeInsets.symmetric(vertical: 16),
+                            decoration: BoxDecoration(color: Colors.green.shade50, borderRadius: BorderRadius.circular(12), border: Border.all(color: Colors.green.shade200)),
+                            child: Row(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                Icon(Icons.check_circle, color: Colors.green),
+                                SizedBox(width: 10),
+                                Text("Ya estás en esta ruta", style: TextStyle(color: Colors.green.shade700, fontSize: 16, fontWeight: FontWeight.w600)),
+                              ],
+                            ),
+                          )
+                    : isLoading
+                        ? Center(child: CircularProgressIndicator())
+                        : SizedBox(
+                            width: double.infinity,
+                            child: ElevatedButton(
+                              onPressed: unirseARuta,
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: Color(0xFF5F2C82),
+                                padding: EdgeInsets.symmetric(vertical: 16),
+                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                               ),
-                            )
-                          : isLoading
-                              ? Center(child: CircularProgressIndicator())
-                              : SizedBox(
-                                  width: double.infinity,
-                                  child: ElevatedButton(
-                                    onPressed: unirseARuta,
-                                    style: ElevatedButton.styleFrom(
-                                      backgroundColor: Color(0xFF5F2C82),
-                                      padding: EdgeInsets.symmetric(vertical: 16),
-                                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                                    ),
-                                    child: Text("Unirse a la ruta", style: TextStyle(fontSize: 16, color: Colors.white, fontWeight: FontWeight.w600)),
-                                  ),
-                                ),
+                              child: Text("Unirse a la ruta", style: TextStyle(fontSize: 16, color: Colors.white, fontWeight: FontWeight.w600)),
+                            ),
+                          ),
                 ],
               ),
             ),

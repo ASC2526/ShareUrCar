@@ -1,5 +1,6 @@
 package com.asc2526.da.unit5.shareurcarbackend.controller;
 
+import com.asc2526.da.unit5.shareurcarbackend.exception.RouteNotFoundException;
 import com.asc2526.da.unit5.shareurcarbackend.model.Route;
 import com.asc2526.da.unit5.shareurcarbackend.service.RouteService;
 import jakarta.validation.Valid;
@@ -64,9 +65,51 @@ public class RouteController {
     public ResponseEntity<?> joinRoute(@PathVariable Integer routeId, @PathVariable Integer userId) {
         try {
             routeService.joinRoute(routeId, userId);
-            return ResponseEntity.ok().body("{\"message\": \"Te has unido a la ruta con éxito\"}");
+            return ResponseEntity.ok().body("Te has unido a la ruta con éxito");
         } catch (RuntimeException e) {
-            return ResponseEntity.badRequest().body("{\"error\": \"" + e.getMessage() + "\"}");
+            return ResponseEntity.badRequest().body("error: " + e.getMessage());
+        }
+    }
+
+    @DeleteMapping("/{routeId}/leave/{userId}")
+    public ResponseEntity<?> leaveRoute(@PathVariable Integer routeId, @PathVariable Integer userId) {
+        try {
+            routeService.leaveRoute(routeId, userId);
+            return ResponseEntity.ok().body("Has abandonado la ruta correctamente");
+        } catch (RuntimeException e) {
+            return ResponseEntity.badRequest().body("error: " + e.getMessage());
+        }
+    }
+
+    @GetMapping("/completed-count/{userId}")
+    public ResponseEntity<?> getCompletedTripsCount(@PathVariable Integer userId) {
+        try {
+            int count = routeService.getCompletedTripsCount(userId);
+            return ResponseEntity.ok(count);
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.badRequest().body(e.getMessage());
+        }
+    }
+
+    @PatchMapping("/{routeId}/complete")
+    public ResponseEntity<?> completeRoute(@PathVariable Integer routeId) {
+        try {
+            routeService.completeRoute(routeId);
+            return ResponseEntity.ok().body("Viaje marcado como completado");
+        } catch (IllegalStateException e) {
+            return ResponseEntity.badRequest().body("Error: " + e.getMessage());
+        } catch (RouteNotFoundException e) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body("Error: " + e.getMessage());
+        }
+    }
+
+    @PatchMapping("/{routeId}/confirm/{userId}")
+    public ResponseEntity<?> confirmParticipation(@PathVariable Integer routeId, @PathVariable Integer userId) {
+        try {
+            routeService.confirmParticipation(routeId, userId);
+            return ResponseEntity.ok("Confirmación registrada con éxito");
+        } catch (RuntimeException e) {
+            return ResponseEntity.badRequest().body("Error: " + e.getMessage());
         }
     }
 }
