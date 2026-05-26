@@ -402,9 +402,9 @@ class _SearchRouteScreenState extends State<SearchRouteScreen> {
               ),
               children: [
                 TileLayer(
-                  urlTemplate: 'https://api.mapbox.com/styles/v1/mapbox/streets-v12/tiles/256/{z}/{x}/{y}@2x?access_token=pk.eyJ1IjoiYWxlc2FuY29yNyIsImEiOiJjbXBsaXBmd2IwNGp5MnRxdWZkM3V5MWp3In0.7UFrSYwmDI3Cq9dA-cgeyA',
-                  additionalOptions: const {
-                    'accessToken': 'pk.eyJ1IjoiYWxlc2FuY29yNyIsImEiOiJjbXBsaXBmd2IwNGp5MnRxdWZkM3V5MWp3In0.7UFrSYwmDI3Cq9dA-cgeyA',
+                  urlTemplate: 'https://api.mapbox.com/styles/v1/mapbox/streets-v12/tiles/256/%7Bz%7D/%7Bx%7D/%7By%7D@2x?access_token={accessToken}',
+                  additionalOptions: {
+                    'accessToken': ApiService.mapboxToken,
                   },
                 ),
               ],

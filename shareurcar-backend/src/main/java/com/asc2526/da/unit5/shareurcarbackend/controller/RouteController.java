@@ -9,6 +9,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
+import java.util.Map;
 
 @RestController
 @RequestMapping("/routes")
@@ -30,7 +31,7 @@ public class RouteController {
     }
 
     @GetMapping("/my-routes/{userId}")
-    public List<Route> getMyRoutes(@PathVariable Integer userId) {
+    public List<Map<String,Object>> getMyRoutes(@PathVariable Integer userId) {
         return routeService.getMyRoutes(userId);
     }
 

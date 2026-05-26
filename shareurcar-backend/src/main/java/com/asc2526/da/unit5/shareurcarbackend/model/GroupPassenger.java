@@ -30,5 +30,9 @@ public class GroupPassenger {
     private String state;
 
     @Column(name = "confirmed")
-    private boolean confirmed = false;
+    private Boolean confirmed = false;
+
+    public boolean isConfirmed() {
+        return confirmed;
+    }
 }

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:shareurcar_app_frontend/screens/active_trip_screen.dart';
 import 'package:shareurcar_app_frontend/screens/create_route_screen.dart';
+import 'package:shareurcar_app_frontend/screens/login_screen.dart';
 import 'package:shareurcar_app_frontend/screens/search_route_screen.dart';
 import '../services/api_service.dart';
 
@@ -115,14 +116,57 @@ class _HomeScreenState extends State<HomeScreen> {
                             ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("No tienes notificaciones nuevas")));
                           },
                         ),
-                        CircleAvatar(
-                          radius: 18,
-                          backgroundColor: Colors.white24,
-                          backgroundImage: fotoUrl != null ? NetworkImage(fotoUrl) : null,
-                          child: fotoUrl == null 
-                              ? Text(_obtenerIniciales(nombreUsuario), style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold))
-                              : null,
-                        ),
+                        PopupMenuButton<String>(
+                          offset: Offset(0, 45),
+                          color: Colors.white,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(14),
+                          ),
+                          onSelected: (value) {
+                            if (value == "logout") {
+                              Navigator.pushAndRemoveUntil(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (_) => LoginScreen(),
+                                ),
+                                (route) => false,
+                              );
+                            }
+                          },
+                          itemBuilder: (context) => [
+                            PopupMenuItem(
+                              value: "logout",
+                              child: Row(
+                                children: [
+                                  Icon(Icons.logout,color: Colors.red,size: 20),
+                                  SizedBox(width: 10),
+                                  Text(
+                                    "Cerrar sesión",
+                                    style: TextStyle(
+                                      color: Colors.red,
+                                      fontWeight: FontWeight.w600,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ],
+                          child: CircleAvatar(
+                            radius: 18,
+                            backgroundColor: Colors.white24,
+                            backgroundImage:
+                                fotoUrl != null ? NetworkImage(fotoUrl) : null,
+                            child: fotoUrl == null
+                                ? Text(
+                                    _obtenerIniciales(nombreUsuario),
+                                    style: TextStyle(
+                                      color: Colors.white,
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                  )
+                                : null,
+                          ),
+                        )
                       ],
                     )
                   ],
@@ -132,14 +176,34 @@ class _HomeScreenState extends State<HomeScreen> {
                   children: [
                     Expanded(
                       child: GestureDetector(
-                        onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => CreateRouteScreen(user: widget.user))),
+                        onTap: () async { await Navigator.push( 
+                          context, 
+                          MaterialPageRoute( builder: (_) => 
+                            CreateRouteScreen(
+                              user: widget.user,
+                            ),
+                          ),
+                        );
+                        fetchMyRoutes();
+                      },
                         child: actionButton("Crear ruta", Icons.add, Color(0xFF42A5F5)),
                       )
                     ),
                     SizedBox(width: 15),
                     Expanded(
                       child: GestureDetector(
-                        onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => SearchRouteScreen(user: widget.user))),
+                        onTap: () async {
+                          await Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (_) =>
+                                  SearchRouteScreen(
+                                user: widget.user,
+                              ),
+                            ),
+                          );
+                        fetchMyRoutes();
+                      },
                         child: actionButton("Buscar rutas", Icons.search, Color(0xFF7E57C2)),
                       )
                     ),
@@ -151,7 +215,6 @@ class _HomeScreenState extends State<HomeScreen> {
 
           SizedBox(height: 20),
 
-          // lista viajes activos
           Expanded(
             child: Padding(
               padding: EdgeInsets.symmetric(horizontal: 20),
@@ -179,11 +242,10 @@ class _HomeScreenState extends State<HomeScreen> {
                           
                           final destino = route['destination'] ?? 'Destino Desconocido';
                           final hora = route['departure_time'] != null ? route['departure_time'].substring(0,5) : '00:00';
-                          final fechaRelativa = _obtenerFechaRelativa(route['travel_date']); // ajustar backend para que devuelva esto
+                          final fechaRelativa = _obtenerFechaRelativa(route['travel_date']);
                           
-                          // el backend deberá mandarnos el nombre del driver y las plazas totales
-                          final driverName = route['driverName'] ?? "Alejandro Sánchez"; 
-                          final plazasTotales = route['max_seats'] ?? 4; 
+                          final driverName = route['driverName'] ?? "Antonio"; 
+                          final plazasTotales = route['maxSeats'] ?? 4; 
                           final plazasOcupadas = plazasTotales - (route['available_seats'] ?? 4);
 
                           return _buildTripCard(destino, hora, fechaRelativa, driverName, plazasOcupadas, plazasTotales);

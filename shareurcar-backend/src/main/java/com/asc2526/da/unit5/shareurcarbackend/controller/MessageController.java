@@ -7,6 +7,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
+import java.util.Map;
 
 @RestController
 @RequestMapping("/messages")
@@ -20,7 +21,7 @@ public class MessageController {
 
     // GET mensajes de un grupo
     @GetMapping("/group/{groupId}")
-    public List<Message> getByGroup(@PathVariable Integer groupId) {
+    public List<Map<String, Object>> getByGroup(@PathVariable Integer groupId) {
         return service.getByGroup(groupId);
     }
 
@@ -36,5 +37,16 @@ public class MessageController {
     @ResponseStatus(HttpStatus.NO_CONTENT)
     public void delete(@PathVariable Integer id) {
         service.delete(id);
+    }
+
+    @GetMapping("/user/{userId}")
+    public List<Map<String, Object>> getUserChats(@PathVariable Integer userId) { return service.getUserChats(userId); }
+
+    @GetMapping("/group-by-route/{routeId}")
+    public Integer getGroupIdByRoute(@PathVariable Integer routeId) { return service.getGroupIdByRoute(routeId); }
+
+    @GetMapping("/group-members/{groupId}")
+    public List<Map<String,Object>> getGroupMembers(@PathVariable Integer groupId) {
+        return service.getGroupMembers(groupId);
     }
 }

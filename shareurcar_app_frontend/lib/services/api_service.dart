@@ -90,7 +90,7 @@ class ApiService {
     }
   }
 
-  static final String mapboxToken = dotenv.env['MAPBOX_TOKEN'] ?? '';
+  static String get mapboxToken => dotenv.env['MAPBOX_TOKEN'] ?? '';
 
   static Future<List<Map<String, dynamic>>> getAddressSuggestions(String query) async {
     if (query.length < 3) return []; 
@@ -257,5 +257,65 @@ class ApiService {
     }
   }
   
+  static Future<List<dynamic>> getGroupMessages(int groupId) async {
+    final url = Uri.parse("$baseUrl/messages/group/$groupId");
+
+    final response = await http.get(url);
+
+    if (response.statusCode == 200) {
+      return json.decode(response.body);
+    } else {
+      throw Exception("Error al cargar los mensajes");
+    }
+  }
+
+  static Future<void> sendMessage(Map<String, dynamic> messageData) async {
+    final response = await http.post(
+      Uri.parse("$baseUrl/messages"),
+      headers: {"Content-Type": "application/json"},
+      body: json.encode(messageData),
+    );
+
+    if (response.statusCode != 201) {
+      throw Exception("Error al enviar el mensaje");
+    }
+  }
+
+  static Future<List<dynamic>> getUserChats(int userId) async {
+    final url = Uri.parse("$baseUrl/messages/user/$userId");
+    final response = await http.get(url);
+    if (response.statusCode == 200) {
+      return json.decode(response.body);
+    } else {
+      throw Exception("Error al cargar los chats");
+    }
+  }
+
+  static Future<int> getGroupIdByRoute(int routeId) async {
+    final response = await http.get(
+      Uri.parse(
+        "$baseUrl/messages/group-by-route/$routeId"
+      ),
+    );
+
+    if (response.statusCode == 200) {
+      return json.decode(response.body);
+    } else {
+      throw Exception("Error obteniendo grupo");
+    }
+  }
+
+  static Future<List<dynamic>> getGroupMembers(int groupId) async {
+    final response = await http.get(
+      Uri.parse(
+        "$baseUrl/messages/group-members/$groupId"
+      ),
+    );
+    if(response.statusCode == 200) {
+      return json.decode(response.body);
+    } else {
+      throw Exception("Error cargando miembros");
+    }
+  }
 
 }

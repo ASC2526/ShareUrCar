@@ -67,6 +67,9 @@ public class Route {
     private String status = "PENDING";
 
     @Column(name = "driver_confirmed")
-    private boolean driverConfirmed = false;
+    private Boolean driverConfirmed = false;
 
+    public boolean isDriverConfirmed() {
+        return driverConfirmed;
+    }
 }

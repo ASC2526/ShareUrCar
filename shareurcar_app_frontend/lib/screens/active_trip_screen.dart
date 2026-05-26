@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:shareurcar_app_frontend/screens/group_chat_screen.dart';
 import '../services/api_service.dart';
 
 class ActiveTripScreen extends StatefulWidget {
@@ -223,7 +224,15 @@ class _ActiveTripScreenState extends State<ActiveTripScreen> {
               subtitle: Text("Habla con el conductor y pasajeros"),
               trailing: Icon(Icons.arrow_forward_ios, size: 16),
               onTap: () {
-                ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("Chat en desarrollo...")));
+                Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (_) => GroupChatScreen(
+                ruta: widget.ruta,
+                user: widget.user,
+              ),
+              ),
+            );
               },
             ),
             Divider(height: 40),
