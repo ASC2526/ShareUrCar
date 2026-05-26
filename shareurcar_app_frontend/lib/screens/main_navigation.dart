@@ -13,12 +13,10 @@ class MainNavigation extends StatefulWidget {
 }
 
 class _MainNavigationState extends State<MainNavigation> {
-
   int currentIndex = 0;
 
   @override
   Widget build(BuildContext context) {
-
     final screens = [
       HomeScreen(user: widget.user),
       ChatsScreen(user: widget.user),

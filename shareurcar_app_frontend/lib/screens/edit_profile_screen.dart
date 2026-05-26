@@ -27,7 +27,8 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
   @override
   void initState() {
     super.initState();
-    _nameController.text = "${widget.user['firstname'] ?? ''} ${widget.user['lastname'] ?? ''}";
+    _nameController.text =
+        "${widget.user['firstname'] ?? ''} ${widget.user['lastname'] ?? ''}";
     _phoneController.text = widget.user['phone'] ?? '';
     _emailController.text = widget.user['email'] ?? '';
     _aboutController.text = widget.user['aboutMe'] ?? '';
@@ -37,7 +38,10 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
   }
 
   Future<void> _pickImage() async {
-    final pickedFile = await _picker.pickImage(source: ImageSource.gallery, imageQuality: 80);
+    final pickedFile = await _picker.pickImage(
+      source: ImageSource.gallery,
+      imageQuality: 80,
+    );
     if (pickedFile != null) {
       setState(() => _imageFile = File(pickedFile.path));
     }
@@ -47,11 +51,14 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
     setState(() => _isLoading = true);
 
     try {
-      final userId = widget.user['idUser'] ?? widget.user['id_user'] ?? widget.user['id'];
-      
+      final userId =
+          widget.user['idUser'] ?? widget.user['id_user'] ?? widget.user['id'];
+
       final updatedData = {
         "firstname": _nameController.text.split(' ').first,
-        "lastname": _nameController.text.split(' ').length > 1 ? _nameController.text.split(' ').sublist(1).join(' ') : "",
+        "lastname": _nameController.text.split(' ').length > 1
+            ? _nameController.text.split(' ').sublist(1).join(' ')
+            : "",
         "phone": _phoneController.text,
         "email": _emailController.text,
         "aboutMe": _aboutController.text,
@@ -60,21 +67,30 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
         "carPlate": _plateController.text,
       };
 
-      bool success = await ApiService.updateUserProfile(updatedData, int.parse(userId.toString()));
+      bool success = await ApiService.updateUserProfile(
+        updatedData,
+        int.parse(userId.toString()),
+      );
 
       if (success) {
         if (!mounted) return;
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text("¡Perfil actualizado con éxito!"), backgroundColor: Colors.green)
+          SnackBar(
+            content: Text("¡Perfil actualizado con éxito!"),
+            backgroundColor: Colors.green,
+          ),
         );
-        Navigator.pop(context, true); 
+        Navigator.pop(context, true);
       } else {
         throw Exception("Error del servidor");
       }
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text("Error al guardar: $e"), backgroundColor: Colors.red)
+        SnackBar(
+          content: Text("Error al guardar: $e"),
+          backgroundColor: Colors.red,
+        ),
       );
     } finally {
       if (mounted) setState(() => _isLoading = false);
@@ -86,17 +102,31 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
     return Scaffold(
       backgroundColor: Colors.white,
       appBar: AppBar(
-        title: Text("Editar perfil", style: TextStyle(color: Colors.black, fontWeight: FontWeight.bold)),
+        title: Text(
+          "Editar perfil",
+          style: TextStyle(color: Colors.black, fontWeight: FontWeight.bold),
+        ),
         backgroundColor: Colors.white,
         elevation: 0,
         leading: BackButton(color: Colors.black),
         actions: [
-          _isLoading 
-            ? Padding(padding: EdgeInsets.only(right: 20), child: Center(child: CircularProgressIndicator(color: Colors.black)))
-            : TextButton(
-                onPressed: _saveProfile,
-                child: Text("Guardar", style: TextStyle(color: Color(0xFF5F2C82), fontWeight: FontWeight.bold)),
-              )
+          _isLoading
+              ? Padding(
+                  padding: EdgeInsets.only(right: 20),
+                  child: Center(
+                    child: CircularProgressIndicator(color: Colors.black),
+                  ),
+                )
+              : TextButton(
+                  onPressed: _saveProfile,
+                  child: Text(
+                    "Guardar",
+                    style: TextStyle(
+                      color: Color(0xFF5F2C82),
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ),
         ],
       ),
       body: SingleChildScrollView(
@@ -108,20 +138,37 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
               child: CircleAvatar(
                 radius: 50,
                 backgroundColor: Colors.grey.shade200,
-                backgroundImage: _imageFile != null 
-                    ? FileImage(_imageFile!) 
-                    : (widget.user['photoUrl'] != null ? NetworkImage(widget.user['photoUrl']) : null) as ImageProvider?,
-                child: _imageFile == null && widget.user['photoUrl'] == null ? Icon(Icons.camera_alt, size: 40, color: Colors.grey) : null,
+                backgroundImage: _imageFile != null
+                    ? FileImage(_imageFile!)
+                    : (widget.user['photoUrl'] != null
+                              ? NetworkImage(widget.user['photoUrl'])
+                              : null)
+                          as ImageProvider?,
+                child: _imageFile == null && widget.user['photoUrl'] == null
+                    ? Icon(Icons.camera_alt, size: 40, color: Colors.grey)
+                    : null,
               ),
             ),
-            TextButton(onPressed: _pickImage, child: Text("Cambiar foto", style: TextStyle(color: Color(0xFF5F2C82)))),
+            TextButton(
+              onPressed: _pickImage,
+              child: Text(
+                "Cambiar foto",
+                style: TextStyle(color: Color(0xFF5F2C82)),
+              ),
+            ),
             SizedBox(height: 20),
             _buildField("Nombre completo", _nameController),
             _buildField("Teléfono", _phoneController, isNumber: true),
             _buildField("Email", _emailController),
             _buildField("Sobre mí", _aboutController, maxLines: 3),
             Divider(height: 40),
-            Align(alignment: Alignment.centerLeft, child: Text("Vehículo", style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold))),
+            Align(
+              alignment: Alignment.centerLeft,
+              child: Text(
+                "Vehículo",
+                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+              ),
+            ),
             SizedBox(height: 15),
             _buildField("Modelo", _modelController),
             _buildField("Color", _colorController),
@@ -132,13 +179,25 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
     );
   }
 
-  Widget _buildField(String label, TextEditingController controller, {bool isNumber = false, int maxLines = 1}) {
+  Widget _buildField(
+    String label,
+    TextEditingController controller, {
+    bool isNumber = false,
+    int maxLines = 1,
+  }) {
     return Padding(
       padding: const EdgeInsets.only(bottom: 20),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(label, style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: Colors.grey.shade600)),
+          Text(
+            label,
+            style: TextStyle(
+              fontSize: 14,
+              fontWeight: FontWeight.w600,
+              color: Colors.grey.shade600,
+            ),
+          ),
           SizedBox(height: 8),
           TextFormField(
             controller: controller,
@@ -147,8 +206,14 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
             decoration: InputDecoration(
               filled: true,
               fillColor: Colors.grey.shade100,
-              contentPadding: EdgeInsets.symmetric(horizontal: 15, vertical: 12),
-              border: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: BorderSide.none),
+              contentPadding: EdgeInsets.symmetric(
+                horizontal: 15,
+                vertical: 12,
+              ),
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(10),
+                borderSide: BorderSide.none,
+              ),
             ),
           ),
         ],

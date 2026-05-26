@@ -20,12 +20,20 @@ class _ActiveTripScreenState extends State<ActiveTripScreen> {
       context: context,
       builder: (context) => AlertDialog(
         title: Text("¿Abandonar viaje?"),
-        content: Text("Estás a punto de cancelar tu plaza en este viaje. ¿Estás seguro?"),
+        content: Text(
+          "Estás a punto de cancelar tu plaza en este viaje. ¿Estás seguro?",
+        ),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(context, false), child: Text("Cancelar")),
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: Text("Cancelar"),
+          ),
           TextButton(
             onPressed: () => Navigator.pop(context, true),
-            child: Text("Sí, abandonar", style: TextStyle(color: Colors.red, fontWeight: FontWeight.bold)),
+            child: Text(
+              "Sí, abandonar",
+              style: TextStyle(color: Colors.red, fontWeight: FontWeight.bold),
+            ),
           ),
         ],
       ),
@@ -35,20 +43,33 @@ class _ActiveTripScreenState extends State<ActiveTripScreen> {
 
     setState(() => isLoading = true);
     try {
-      final routeId = widget.ruta['id_route'] ?? widget.ruta['idRoute'] ?? widget.ruta['id'];
-      final userId = widget.user['idUser'] ?? widget.user['id_user'] ?? widget.user['id'];
+      final routeId =
+          widget.ruta['id_route'] ??
+          widget.ruta['idRoute'] ??
+          widget.ruta['id'];
+      final userId =
+          widget.user['idUser'] ?? widget.user['id_user'] ?? widget.user['id'];
 
-      await ApiService.leaveRoute(int.parse(routeId.toString()), int.parse(userId.toString()));
+      await ApiService.leaveRoute(
+        int.parse(routeId.toString()),
+        int.parse(userId.toString()),
+      );
 
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text("Has abandonado la ruta correctamente"), backgroundColor: Colors.orange),
+        SnackBar(
+          content: Text("Has abandonado la ruta correctamente"),
+          backgroundColor: Colors.orange,
+        ),
       );
       Navigator.pop(context, true);
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(e.toString().replaceAll("Exception: ", "")), backgroundColor: Colors.red),
+        SnackBar(
+          content: Text(e.toString().replaceAll("Exception: ", "")),
+          backgroundColor: Colors.red,
+        ),
       );
     } finally {
       if (mounted) setState(() => isLoading = false);
@@ -60,9 +81,14 @@ class _ActiveTripScreenState extends State<ActiveTripScreen> {
       context: context,
       builder: (context) => AlertDialog(
         title: Text("¿Finalizar viaje?"),
-        content: Text("Al confirmar, el viaje se marcará como terminado. ¿Es correcto?"),
+        content: Text(
+          "Al confirmar, el viaje se marcará como terminado. ¿Es correcto?",
+        ),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(context, false), child: Text("Volver")),
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: Text("Volver"),
+          ),
           ElevatedButton(
             onPressed: () => Navigator.pop(context, true),
             style: ElevatedButton.styleFrom(backgroundColor: Colors.green),
@@ -76,12 +102,18 @@ class _ActiveTripScreenState extends State<ActiveTripScreen> {
 
     setState(() => isLoading = true);
     try {
-      final routeId = widget.ruta['id_route'] ?? widget.ruta['idRoute'] ?? widget.ruta['id'];
+      final routeId =
+          widget.ruta['id_route'] ??
+          widget.ruta['idRoute'] ??
+          widget.ruta['id'];
       await ApiService.completeRoute(int.parse(routeId.toString()));
 
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text("Viaje finalizado con éxito"), backgroundColor: Colors.green),
+        SnackBar(
+          content: Text("Viaje finalizado con éxito"),
+          backgroundColor: Colors.green,
+        ),
       );
       Navigator.pop(context, true);
     } catch (e) {
@@ -99,12 +131,20 @@ class _ActiveTripScreenState extends State<ActiveTripScreen> {
       context: context,
       builder: (context) => AlertDialog(
         title: Text("¿Cancelar ruta completa?"),
-        content: Text("Eres el conductor. Si cancelas esta ruta, se avisará a los pasajeros. ¿Estás seguro?"),
+        content: Text(
+          "Eres el conductor. Si cancelas esta ruta, se avisará a los pasajeros. ¿Estás seguro?",
+        ),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(context, false), child: Text("Volver")),
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: Text("Volver"),
+          ),
           TextButton(
             onPressed: () => Navigator.pop(context, true),
-            child: Text("Sí, cancelar ruta", style: TextStyle(color: Colors.red, fontWeight: FontWeight.bold)),
+            child: Text(
+              "Sí, cancelar ruta",
+              style: TextStyle(color: Colors.red, fontWeight: FontWeight.bold),
+            ),
           ),
         ],
       ),
@@ -114,18 +154,27 @@ class _ActiveTripScreenState extends State<ActiveTripScreen> {
 
     setState(() => isLoading = true);
     try {
-      final routeId = widget.ruta['id_route'] ?? widget.ruta['idRoute'] ?? widget.ruta['id'];
+      final routeId =
+          widget.ruta['id_route'] ??
+          widget.ruta['idRoute'] ??
+          widget.ruta['id'];
       await ApiService.deleteRoute(int.parse(routeId.toString()));
 
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text("Ruta cancelada correctamente"), backgroundColor: Colors.orange),
+        SnackBar(
+          content: Text("Ruta cancelada correctamente"),
+          backgroundColor: Colors.orange,
+        ),
       );
       Navigator.pop(context, true);
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text("Error al cancelar la ruta"), backgroundColor: Colors.red),
+        SnackBar(
+          content: Text("Error al cancelar la ruta"),
+          backgroundColor: Colors.red,
+        ),
       );
     } finally {
       if (mounted) setState(() => isLoading = false);
@@ -133,20 +182,30 @@ class _ActiveTripScreenState extends State<ActiveTripScreen> {
   }
 
   void confirmarLlegada() async {
-    final routeId = widget.ruta['id_route'] ?? widget.ruta['idRoute'] ?? widget.ruta['id'];
-    final userId = widget.user['idUser'] ?? widget.user['id_user'] ?? widget.user['id'];
+    final routeId =
+        widget.ruta['id_route'] ?? widget.ruta['idRoute'] ?? widget.ruta['id'];
+    final userId =
+        widget.user['idUser'] ?? widget.user['id_user'] ?? widget.user['id'];
 
     setState(() => isLoading = true);
     try {
-      await ApiService.confirmParticipation(int.parse(routeId.toString()), int.parse(userId.toString()));
+      await ApiService.confirmParticipation(
+        int.parse(routeId.toString()),
+        int.parse(userId.toString()),
+      );
 
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text("¡Confirmación enviada!"), backgroundColor: Colors.green),
+        SnackBar(
+          content: Text("¡Confirmación enviada!"),
+          backgroundColor: Colors.green,
+        ),
       );
       Navigator.pop(context, true);
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("Error: $e"), backgroundColor: Colors.red));
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text("Error: $e"), backgroundColor: Colors.red),
+      );
     } finally {
       if (mounted) setState(() => isLoading = false);
     }
@@ -159,10 +218,14 @@ class _ActiveTripScreenState extends State<ActiveTripScreen> {
       builder: (ctx) => AlertDialog(
         title: Text("Reportar incidencia"),
         content: TextField(
-            controller: incidenciaController,
-            decoration: InputDecoration(hintText: "Explica qué ha pasado...")),
+          controller: incidenciaController,
+          decoration: InputDecoration(hintText: "Explica qué ha pasado..."),
+        ),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx), child: Text("Cancelar")),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: Text("Cancelar"),
+          ),
           ElevatedButton(
             onPressed: () async {
               // await ApiService.reportIncident();
@@ -177,12 +240,17 @@ class _ActiveTripScreenState extends State<ActiveTripScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final bool esConductor = (widget.ruta['idDriver'] ?? widget.ruta['id_driver']) == (widget.user['idUser'] ?? widget.user['id_user']);
+    final bool esConductor =
+        (widget.ruta['idDriver'] ?? widget.ruta['id_driver']) ==
+        (widget.user['idUser'] ?? widget.user['id_user']);
 
     return Scaffold(
       backgroundColor: Colors.grey.shade50,
       appBar: AppBar(
-        title: Text("Gestión del Viaje", style: TextStyle(color: Colors.black87, fontWeight: FontWeight.bold)),
+        title: Text(
+          "Gestión del Viaje",
+          style: TextStyle(color: Colors.black87, fontWeight: FontWeight.bold),
+        ),
         backgroundColor: Colors.white,
         elevation: 0,
         leading: BackButton(color: Colors.black87),
@@ -195,22 +263,52 @@ class _ActiveTripScreenState extends State<ActiveTripScreen> {
           children: [
             Container(
               padding: EdgeInsets.all(20),
-              decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(16), border: Border.all(color: Colors.grey.shade200)),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(color: Colors.grey.shade200),
+              ),
               child: Column(
                 children: [
                   Row(
                     children: [
-                      Icon(Icons.radio_button_checked, color: Colors.blue.shade600),
+                      Icon(
+                        Icons.radio_button_checked,
+                        color: Colors.blue.shade600,
+                      ),
                       SizedBox(width: 15),
-                      Expanded(child: Text(widget.ruta['origin'] ?? '', style: TextStyle(fontSize: 16))),
+                      Expanded(
+                        child: Text(
+                          widget.ruta['origin'] ?? '',
+                          style: TextStyle(fontSize: 16),
+                        ),
+                      ),
                     ],
                   ),
-                  Align(alignment: Alignment.centerLeft, child: Padding(padding: EdgeInsets.only(left: 11), child: Container(height: 20, width: 2, color: Colors.grey.shade300))),
+                  Align(
+                    alignment: Alignment.centerLeft,
+                    child: Padding(
+                      padding: EdgeInsets.only(left: 11),
+                      child: Container(
+                        height: 20,
+                        width: 2,
+                        color: Colors.grey.shade300,
+                      ),
+                    ),
+                  ),
                   Row(
                     children: [
                       Icon(Icons.location_on, color: Colors.red),
                       SizedBox(width: 15),
-                      Expanded(child: Text(widget.ruta['destination'] ?? '', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold))),
+                      Expanded(
+                        child: Text(
+                          widget.ruta['destination'] ?? '',
+                          style: TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ),
                     ],
                   ),
                 ],
@@ -219,20 +317,24 @@ class _ActiveTripScreenState extends State<ActiveTripScreen> {
             SizedBox(height: 30),
             ListTile(
               contentPadding: EdgeInsets.zero,
-              leading: CircleAvatar(backgroundColor: Color.fromRGBO(95, 44, 130, 0.1), child: Icon(Icons.chat, color: Color(0xFF5F2C82))),
-              title: Text("Chat del grupo", style: TextStyle(fontWeight: FontWeight.bold)),
+              leading: CircleAvatar(
+                backgroundColor: Color.fromRGBO(95, 44, 130, 0.1),
+                child: Icon(Icons.chat, color: Color(0xFF5F2C82)),
+              ),
+              title: Text(
+                "Chat del grupo",
+                style: TextStyle(fontWeight: FontWeight.bold),
+              ),
               subtitle: Text("Habla con el conductor y pasajeros"),
               trailing: Icon(Icons.arrow_forward_ios, size: 16),
               onTap: () {
                 Navigator.push(
-              context,
-              MaterialPageRoute(
-                builder: (_) => GroupChatScreen(
-                ruta: widget.ruta,
-                user: widget.user,
-              ),
-              ),
-            );
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) =>
+                        GroupChatScreen(ruta: widget.ruta, user: widget.user),
+                  ),
+                );
               },
             ),
             Divider(height: 40),
@@ -244,12 +346,17 @@ class _ActiveTripScreenState extends State<ActiveTripScreen> {
                   child: ElevatedButton.icon(
                     onPressed: isLoading ? null : confirmarLlegada,
                     icon: Icon(Icons.check_circle, color: Colors.white),
-                    label: Text("confirmar", style: TextStyle(fontWeight: FontWeight.bold)),
+                    label: Text(
+                      "confirmar",
+                      style: TextStyle(fontWeight: FontWeight.bold),
+                    ),
                     style: ElevatedButton.styleFrom(
                       backgroundColor: Colors.green,
                       foregroundColor: Colors.white,
                       padding: EdgeInsets.symmetric(vertical: 16),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
                     ),
                   ),
                 ),
@@ -258,12 +365,20 @@ class _ActiveTripScreenState extends State<ActiveTripScreen> {
                   width: double.infinity,
                   child: OutlinedButton.icon(
                     onPressed: isLoading ? null : reportarIncidencia,
-                    icon: Icon(Icons.warning_amber_rounded, color: Colors.orange),
-                    label: Text("incidencia", style: TextStyle(color: Colors.orange)),
+                    icon: Icon(
+                      Icons.warning_amber_rounded,
+                      color: Colors.orange,
+                    ),
+                    label: Text(
+                      "incidencia",
+                      style: TextStyle(color: Colors.orange),
+                    ),
                     style: OutlinedButton.styleFrom(
                       padding: EdgeInsets.symmetric(vertical: 16),
                       side: BorderSide(color: Colors.orange),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
                     ),
                   ),
                 ),
@@ -271,14 +386,23 @@ class _ActiveTripScreenState extends State<ActiveTripScreen> {
                 SizedBox(
                   width: double.infinity,
                   child: OutlinedButton.icon(
-                    onPressed: isLoading ? null : (esConductor ? cancelarRuta : abandonarRuta),
-                    icon: Icon(esConductor ? Icons.delete_forever : Icons.exit_to_app, color: Colors.red),
-                    label: Text(esConductor ? "cancelar ruta" : "abandonar ruta"),
+                    onPressed: isLoading
+                        ? null
+                        : (esConductor ? cancelarRuta : abandonarRuta),
+                    icon: Icon(
+                      esConductor ? Icons.delete_forever : Icons.exit_to_app,
+                      color: Colors.red,
+                    ),
+                    label: Text(
+                      esConductor ? "cancelar ruta" : "abandonar ruta",
+                    ),
                     style: OutlinedButton.styleFrom(
                       foregroundColor: Colors.red,
                       padding: EdgeInsets.symmetric(vertical: 16),
                       side: BorderSide(color: Colors.red.shade200),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
                     ),
                   ),
                 ),

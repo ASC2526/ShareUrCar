@@ -11,7 +11,6 @@ class RegisterScreen extends StatefulWidget {
 }
 
 class _RegisterScreenState extends State<RegisterScreen> {
-
   final _formKey = GlobalKey<FormState>();
 
   final nameController = TextEditingController();
@@ -42,10 +41,10 @@ class _RegisterScreenState extends State<RegisterScreen> {
         "email": emailController.text,
         "password": passwordController.text,
         "center": centerController.text,
-        "rating": 0
+        "rating": 0,
       });
 
-      if (!mounted) return; 
+      if (!mounted) return;
 
       showDialog(
         context: context,
@@ -57,9 +56,8 @@ class _RegisterScreenState extends State<RegisterScreen> {
         if (!mounted) return;
         Navigator.pop(context);
       });
-
     } catch (e) {
-      if (!mounted) return; 
+      if (!mounted) return;
       showError(e.toString());
     }
   }
@@ -67,10 +65,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
   void showError(String msg) {
     showDialog(
       context: context,
-      builder: (_) => AlertDialog(
-        title: Text("Error"),
-        content: Text(msg),
-      ),
+      builder: (_) => AlertDialog(title: Text("Error"), content: Text(msg)),
     );
   }
 
@@ -90,27 +85,35 @@ class _RegisterScreenState extends State<RegisterScreen> {
           key: _formKey,
           child: ListView(
             children: [
-
               SizedBox(height: 30),
 
               CircleAvatar(
                 radius: 40,
                 backgroundColor: Colors.white24,
-                child: Icon(Icons.directions_car, size: 40, color: Colors.white),
+                child: Icon(
+                  Icons.directions_car,
+                  size: 40,
+                  color: Colors.white,
+                ),
               ),
 
               SizedBox(height: 15),
 
-              Text("Crear cuenta",
-                  textAlign: TextAlign.center,
-                  style: TextStyle(
-                      color: Colors.white,
-                      fontSize: 26,
-                      fontWeight: FontWeight.bold)),
+              Text(
+                "Crear cuenta",
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  color: Colors.white,
+                  fontSize: 26,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
 
-              Text("Únete a ShareUrCar",
-                  textAlign: TextAlign.center,
-                  style: TextStyle(color: Colors.white70)),
+              Text(
+                "Únete a ShareUrCar",
+                textAlign: TextAlign.center,
+                style: TextStyle(color: Colors.white70),
+              ),
 
               SizedBox(height: 30),
 
@@ -136,11 +139,18 @@ class _RegisterScreenState extends State<RegisterScreen> {
                         ),
                       ),
                       onChanged: (val) {
-                        if (_centerDebounce?.isActive ?? false) _centerDebounce!.cancel();
-                        _centerDebounce = Timer(Duration(milliseconds: 600), () async {
-                          final sug = await ApiService.getCenterSuggestions(val);
-                          if (mounted) setState(() => centerSuggestions = sug);
-                        });
+                        if (_centerDebounce?.isActive ?? false)
+                          _centerDebounce!.cancel();
+                        _centerDebounce = Timer(
+                          Duration(milliseconds: 600),
+                          () async {
+                            final sug = await ApiService.getCenterSuggestions(
+                              val,
+                            );
+                            if (mounted)
+                              setState(() => centerSuggestions = sug);
+                          },
+                        );
                       },
                     ),
                     // desplegable de resultados
@@ -148,8 +158,8 @@ class _RegisterScreenState extends State<RegisterScreen> {
                       Container(
                         margin: EdgeInsets.only(top: 5),
                         decoration: BoxDecoration(
-                          color: Colors.white, 
-                          borderRadius: BorderRadius.circular(15)
+                          color: Colors.white,
+                          borderRadius: BorderRadius.circular(15),
                         ),
                         child: ListView.builder(
                           shrinkWrap: true,
@@ -157,10 +167,21 @@ class _RegisterScreenState extends State<RegisterScreen> {
                           physics: NeverScrollableScrollPhysics(),
                           itemCount: centerSuggestions.length,
                           itemBuilder: (context, idx) => ListTile(
-                            leading: Icon(Icons.account_balance, size: 18, color: Color(0xFF5F2C82)),
-                            title: Text(centerSuggestions[idx]['name'], style: TextStyle(fontSize: 13, color: Colors.black87)),
+                            leading: Icon(
+                              Icons.account_balance,
+                              size: 18,
+                              color: Color(0xFF5F2C82),
+                            ),
+                            title: Text(
+                              centerSuggestions[idx]['name'],
+                              style: TextStyle(
+                                fontSize: 13,
+                                color: Colors.black87,
+                              ),
+                            ),
                             onTap: () => setState(() {
-                              centerController.text = centerSuggestions[idx]['name'];
+                              centerController.text =
+                                  centerSuggestions[idx]['name'];
                               centerSuggestions.clear();
                             }),
                           ),
@@ -169,8 +190,18 @@ class _RegisterScreenState extends State<RegisterScreen> {
                   ],
                 ),
               ),
-              input("Contraseña", passwordController, Icons.lock, obscure: true),
-              input("Confirmar contraseña", confirmController, Icons.lock, obscure: true),
+              input(
+                "Contraseña",
+                passwordController,
+                Icons.lock,
+                obscure: true,
+              ),
+              input(
+                "Confirmar contraseña",
+                confirmController,
+                Icons.lock,
+                obscure: true,
+              ),
 
               SizedBox(height: 20),
 
@@ -190,9 +221,11 @@ class _RegisterScreenState extends State<RegisterScreen> {
 
               TextButton(
                 onPressed: () => Navigator.pop(context),
-                child: Text("¿Ya tienes cuenta? Iniciar sesión",
-                    style: TextStyle(color: Colors.white)),
-              )
+                child: Text(
+                  "¿Ya tienes cuenta? Iniciar sesión",
+                  style: TextStyle(color: Colors.white),
+                ),
+              ),
             ],
           ),
         ),
@@ -200,8 +233,12 @@ class _RegisterScreenState extends State<RegisterScreen> {
     );
   }
 
-  Widget input(String hint, TextEditingController controller, IconData icon,
-      {bool obscure = false}) {
+  Widget input(
+    String hint,
+    TextEditingController controller,
+    IconData icon, {
+    bool obscure = false,
+  }) {
     return Padding(
       padding: EdgeInsets.only(bottom: 15),
       child: TextFormField(

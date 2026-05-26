@@ -31,10 +31,7 @@ class ApiService {
     final response = await http.post(
       Uri.parse('$baseUrl/auth/login'),
       headers: {'Content-Type': 'application/json'},
-      body: jsonEncode({
-        'email': email,
-        'password': password,
-      }),
+      body: jsonEncode({'email': email, 'password': password}),
     );
 
     if (response.statusCode == 200) {
@@ -92,18 +89,21 @@ class ApiService {
 
   static String get mapboxToken => dotenv.env['MAPBOX_TOKEN'] ?? '';
 
-  static Future<List<Map<String, dynamic>>> getAddressSuggestions(String query) async {
-    if (query.length < 3) return []; 
+  static Future<List<Map<String, dynamic>>> getAddressSuggestions(
+    String query,
+  ) async {
+    if (query.length < 3) return [];
 
     final url = Uri.parse(
-        "https://api.mapbox.com/geocoding/v5/mapbox.places/${Uri.encodeComponent(query)}.json?country=es&proximity=-0.4810,38.3452&types=poi,address,place&access_token=$mapboxToken&limit=5");
+      "https://api.mapbox.com/geocoding/v5/mapbox.places/${Uri.encodeComponent(query)}.json?country=es&proximity=-0.4810,38.3452&types=poi,address,place&access_token=$mapboxToken&limit=5",
+    );
 
     try {
       final response = await http.get(url);
       if (response.statusCode == 200) {
         final data = json.decode(response.body);
         final List features = data['features'] ?? [];
-        
+
         return features.map((f) {
           return {
             'name': f['place_name'],
@@ -118,8 +118,15 @@ class ApiService {
     return [];
   }
 
-  static Future<List<dynamic>> searchRoutes(double originLat, double originLng, double destLat, double destLng) async {
-    final url = Uri.parse("$baseUrl/routes/search?originLat=$originLat&originLng=$originLng&destLat=$destLat&destLng=$destLng");
+  static Future<List<dynamic>> searchRoutes(
+    double originLat,
+    double originLng,
+    double destLat,
+    double destLng,
+  ) async {
+    final url = Uri.parse(
+      "$baseUrl/routes/search?originLat=$originLat&originLng=$originLng&destLat=$destLat&destLng=$destLng",
+    );
     final response = await http.get(url);
     if (response.statusCode == 200) return json.decode(response.body);
     throw Exception("Error al buscar las rutas");
@@ -140,7 +147,7 @@ class ApiService {
   static Future<void> joinRoute(int routeId, int userId) async {
     final url = Uri.parse("$baseUrl/routes/$routeId/join/$userId");
     final response = await http.post(url);
-    
+
     if (response.statusCode != 200) {
       try {
         final errorBody = json.decode(response.body);
@@ -164,7 +171,7 @@ class ApiService {
   static Future<void> leaveRoute(int routeId, int userId) async {
     final url = Uri.parse("$baseUrl/routes/$routeId/leave/$userId");
     final response = await http.delete(url);
-    
+
     if (response.statusCode != 200) {
       try {
         final errorBody = json.decode(response.body);
@@ -178,19 +185,22 @@ class ApiService {
   static Future<void> deleteRoute(int routeId) async {
     final url = Uri.parse("$baseUrl/routes/$routeId");
     final response = await http.delete(url);
-    
+
     if (response.statusCode != 200 && response.statusCode != 204) {
       throw Exception("Error al cancelar la ruta");
     }
   }
 
   // buscador especializado en centros educativos
-  static Future<List<Map<String, dynamic>>> getCenterSuggestions(String query) async {
+  static Future<List<Map<String, dynamic>>> getCenterSuggestions(
+    String query,
+  ) async {
     if (query.length < 3) return [];
 
     // restringimos la búsqueda a colegios/institutos/universidades
     final url = Uri.parse(
-        "https://api.mapbox.com/geocoding/v5/mapbox.places/${Uri.encodeComponent(query)}.json?country=es&types=poi&poi_category=education&access_token=$mapboxToken&limit=5");
+      "https://api.mapbox.com/geocoding/v5/mapbox.places/${Uri.encodeComponent(query)}.json?country=es&types=poi&poi_category=education&access_token=$mapboxToken&limit=5",
+    );
 
     try {
       final response = await http.get(url);
@@ -205,9 +215,12 @@ class ApiService {
     return [];
   }
 
-  static Future<bool> updateUserProfile(Map<String, dynamic> data, int userId) async {
+  static Future<bool> updateUserProfile(
+    Map<String, dynamic> data,
+    int userId,
+  ) async {
     final url = Uri.parse("$baseUrl/users/$userId");
-  
+
     final response = await http.put(
       url,
       headers: {"Content-Type": "application/json"},
@@ -230,14 +243,14 @@ class ApiService {
     final url = Uri.parse("$baseUrl/routes/completed-count/$userId");
     final response = await http.get(url);
     if (response.statusCode == 200) {
-      return int.parse(response.body); 
+      return int.parse(response.body);
     }
     return 0;
   }
 
   static Future<void> completeRoute(int routeId) async {
     final url = Uri.parse("$baseUrl/routes/$routeId/complete");
-    
+
     final response = await http.patch(
       url,
       headers: {"Content-Type": "application/json"},
@@ -250,13 +263,13 @@ class ApiService {
 
   static Future<void> confirmParticipation(int routeId, int userId) async {
     final url = Uri.parse("$baseUrl/routes/$routeId/confirm/$userId");
-    final response = await http.patch(url); 
+    final response = await http.patch(url);
 
     if (response.statusCode != 200) {
       throw Exception("Error al confirmar: ${response.body}");
     }
   }
-  
+
   static Future<List<dynamic>> getGroupMessages(int groupId) async {
     final url = Uri.parse("$baseUrl/messages/group/$groupId");
 
@@ -293,9 +306,7 @@ class ApiService {
 
   static Future<int> getGroupIdByRoute(int routeId) async {
     final response = await http.get(
-      Uri.parse(
-        "$baseUrl/messages/group-by-route/$routeId"
-      ),
+      Uri.parse("$baseUrl/messages/group-by-route/$routeId"),
     );
 
     if (response.statusCode == 200) {
@@ -307,15 +318,12 @@ class ApiService {
 
   static Future<List<dynamic>> getGroupMembers(int groupId) async {
     final response = await http.get(
-      Uri.parse(
-        "$baseUrl/messages/group-members/$groupId"
-      ),
+      Uri.parse("$baseUrl/messages/group-members/$groupId"),
     );
-    if(response.statusCode == 200) {
+    if (response.statusCode == 200) {
       return json.decode(response.body);
     } else {
       throw Exception("Error cargando miembros");
     }
   }
-
 }

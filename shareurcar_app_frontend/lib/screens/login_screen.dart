@@ -11,11 +11,10 @@ class LoginScreen extends StatefulWidget {
 }
 
 class _LoginScreenState extends State<LoginScreen> {
+  final emailController = TextEditingController();
+  final passwordController = TextEditingController();
 
-    final emailController = TextEditingController();
-    final passwordController = TextEditingController();
-
-    void handleLogin() async {
+  void handleLogin() async {
     try {
       final user = await ApiService.login(
         emailController.text.trim(),
@@ -24,13 +23,12 @@ class _LoginScreenState extends State<LoginScreen> {
 
       if (!mounted) return;
 
-      Navigator.pushReplacement( 
+      Navigator.pushReplacement(
         context,
         MaterialPageRoute(builder: (_) => MainNavigation(user: user)),
       );
-
     } catch (e) {
-      if (!mounted) return; 
+      if (!mounted) return;
       showDialog(
         context: context,
         builder: (_) => AlertDialog(
@@ -42,7 +40,7 @@ class _LoginScreenState extends State<LoginScreen> {
                 Navigator.pop(context);
               },
               child: Text("Reintentar"),
-            )
+            ),
           ],
         ),
       );
@@ -65,7 +63,6 @@ class _LoginScreenState extends State<LoginScreen> {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-
             CircleAvatar(
               radius: 40,
               backgroundColor: Colors.white24,
@@ -74,17 +71,22 @@ class _LoginScreenState extends State<LoginScreen> {
 
             SizedBox(height: 20),
 
-            Text("ShareUrCar 🚗",
-                style: TextStyle(
-                    color: Colors.white,
-                    fontSize: 26,
-                    fontWeight: FontWeight.bold)),
+            Text(
+              "ShareUrCar 🚗",
+              style: TextStyle(
+                color: Colors.white,
+                fontSize: 26,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
 
             SizedBox(height: 10),
 
-            Text("Comparte tu viaje, ahorra y cuida el planeta",
-                style: TextStyle(color: Colors.white70),
-                textAlign: TextAlign.center),
+            Text(
+              "Comparte tu viaje, ahorra y cuida el planeta",
+              style: TextStyle(color: Colors.white70),
+              textAlign: TextAlign.center,
+            ),
 
             SizedBox(height: 30),
 
@@ -117,8 +119,10 @@ class _LoginScreenState extends State<LoginScreen> {
                   MaterialPageRoute(builder: (_) => RegisterScreen()),
                 );
               },
-              child: Text("¿No tienes cuenta? Crear cuenta",
-                  style: TextStyle(color: Colors.white)),
+              child: Text(
+                "¿No tienes cuenta? Crear cuenta",
+                style: TextStyle(color: Colors.white),
+              ),
             ),
           ],
         ),
@@ -126,8 +130,12 @@ class _LoginScreenState extends State<LoginScreen> {
     );
   }
 
-  Widget input(TextEditingController controller, String hint, IconData icon,
-      {bool obscure = false}) {
+  Widget input(
+    TextEditingController controller,
+    String hint,
+    IconData icon, {
+    bool obscure = false,
+  }) {
     return Padding(
       padding: EdgeInsets.only(bottom: 15),
       child: TextField(

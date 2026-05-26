@@ -3,29 +3,21 @@ import 'package:shareurcar_app_frontend/screens/group_members_screen.dart';
 import '../services/api_service.dart';
 
 class GroupChatScreen extends StatefulWidget {
-
-  final Map<String,dynamic> ruta;
+  final Map<String, dynamic> ruta;
   final Map user;
 
-  const GroupChatScreen({
-    super.key,
-    required this.ruta,
-    required this.user,
-  });
+  const GroupChatScreen({super.key, required this.ruta, required this.user});
 
   @override
-  State<GroupChatScreen> createState() =>
-      _GroupChatScreenState();
+  State<GroupChatScreen> createState() => _GroupChatScreenState();
 }
 
 class _GroupChatScreenState extends State<GroupChatScreen> {
-
   List<dynamic> messages = [];
   bool isLoading = true;
   int? groupId;
 
-  final TextEditingController messageController =
-      TextEditingController();
+  final TextEditingController messageController = TextEditingController();
 
   @override
   void initState() {
@@ -34,27 +26,18 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
   }
 
   Future<void> loadGroupId() async {
-
     try {
+      final routeId = widget.ruta['idRoute'];
 
-      final routeId =
-          widget.ruta['idRoute'];
-
-      final result =
-          await ApiService.getGroupIdByRoute(
-              routeId
-          );
+      final result = await ApiService.getGroupIdByRoute(routeId);
 
       setState(() {
         groupId = result;
       });
 
       fetchMessages();
-
-    } catch(e) {
-
-      ScaffoldMessenger.of(context)
-          .showSnackBar(
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text("Error cargando grupo"),
           backgroundColor: Colors.red,
@@ -64,64 +47,44 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
   }
 
   void fetchMessages() async {
-
-    if(groupId == null) return;
+    if (groupId == null) return;
 
     try {
-
-      final data =
-          await ApiService.getGroupMessages(
-              groupId!
-          );
+      final data = await ApiService.getGroupMessages(groupId!);
 
       setState(() {
         messages = data;
       });
-
-    } catch(e) {
-
-      ScaffoldMessenger.of(context)
-          .showSnackBar(
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text("Error cargando mensajes"),
           backgroundColor: Colors.red,
         ),
       );
-
     } finally {
-
       setState(() => isLoading = false);
-
     }
   }
 
   void sendMessage() async {
-
-    if(messageController.text.trim().isEmpty) return;
-    if(groupId == null) return;
+    if (messageController.text.trim().isEmpty) return;
+    if (groupId == null) return;
 
     try {
-
-      final userId =
-          widget.user['idUser'] ??
-          widget.user['id_user'];
+      final userId = widget.user['idUser'] ?? widget.user['id_user'];
 
       await ApiService.sendMessage({
-
         "idGroup": groupId,
         "idUser": userId,
         "text": messageController.text.trim(),
-
       });
 
       messageController.clear();
 
       fetchMessages();
-
-    } catch(e) {
-
-      ScaffoldMessenger.of(context)
-          .showSnackBar(
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text("Error enviando mensaje"),
           backgroundColor: Colors.red,
@@ -132,68 +95,44 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final destino = widget.ruta['destination'] ?? "Chat del viaje";
 
-    final destino =
-        widget.ruta['destination'] ??
-        "Chat del viaje";
-
-    final currentUserId =
-        widget.user['idUser'] ??
-        widget.user['id_user'];
+    final currentUserId = widget.user['idUser'] ?? widget.user['id_user'];
 
     return Scaffold(
-
       backgroundColor: Colors.grey.shade50,
 
       appBar: AppBar(
-
         backgroundColor: Colors.white,
 
         elevation: 0,
 
         centerTitle: true,
 
-        leading: BackButton(
-          color: Colors.black87,
-        ),
+        leading: BackButton(color: Colors.black87),
 
         title: GestureDetector(
-
           onTap: () {
+            if (groupId == null) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(content: Text("Cargando integrantes...")),
+              );
 
-  if(groupId == null) {
+              return;
+            }
 
-    ScaffoldMessenger.of(context)
-        .showSnackBar(
+            Navigator.push(
+              context,
 
-      SnackBar(
-        content: Text(
-            "Cargando integrantes..."
-        ),
-      ),
-    );
-
-    return;
-  }
-
-  Navigator.push(
-
-    context,
-
-    MaterialPageRoute(
-
-      builder: (_) => GroupMembersScreen(
-        groupId: groupId!,
-        user: widget.user,
-      ),
-    ),
-  );
-},
+              MaterialPageRoute(
+                builder: (_) =>
+                    GroupMembersScreen(groupId: groupId!, user: widget.user),
+              ),
+            );
+          },
 
           child: Column(
-
             children: [
-
               Text(
                 destino,
                 style: TextStyle(
@@ -205,10 +144,7 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
 
               Text(
                 "Chat del grupo",
-                style: TextStyle(
-                  color: Colors.grey.shade600,
-                  fontSize: 12,
-                ),
+                style: TextStyle(color: Colors.grey.shade600, fontSize: 12),
               ),
             ],
           ),
@@ -216,241 +152,170 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
       ),
 
       body: Column(
-
         children: [
-
           Expanded(
-
             child: isLoading
-
                 ? Center(
-                    child:
-                        CircularProgressIndicator(
-                      color: Color(0xFF5F2C82),
+                    child: CircularProgressIndicator(color: Color(0xFF5F2C82)),
+                  )
+                : messages.isEmpty
+                ? Center(
+                    child: Text(
+                      "Todavía no hay mensajes",
+                      style: TextStyle(color: Colors.grey.shade600),
                     ),
                   )
+                : ListView.builder(
+                    padding: EdgeInsets.all(20),
 
-                : messages.isEmpty
+                    itemCount: messages.length,
 
-                    ? Center(
-                        child: Text(
-                          "Todavía no hay mensajes",
-                          style: TextStyle(
-                            color: Colors.grey.shade600,
+                    itemBuilder: (context, index) {
+                      final msg = messages[index];
+
+                      final bool isMine = msg['idUser'] == currentUserId;
+
+                      return Align(
+                        alignment: isMine
+                            ? Alignment.centerRight
+                            : Alignment.centerLeft,
+
+                        child: Container(
+                          margin: EdgeInsets.only(bottom: 12),
+
+                          padding: EdgeInsets.symmetric(
+                            horizontal: 16,
+                            vertical: 12,
                           ),
-                        ),
-                      )
 
-                    : ListView.builder(
+                          constraints: BoxConstraints(
+                            maxWidth: MediaQuery.of(context).size.width * 0.75,
+                          ),
 
-                        padding: EdgeInsets.all(20),
+                          decoration: BoxDecoration(
+                            color: isMine ? Color(0xFF5F2C82) : Colors.white,
 
-                        itemCount: messages.length,
+                            borderRadius: BorderRadius.circular(18),
 
-                        itemBuilder:
-                            (context,index) {
-
-                          final msg =
-                              messages[index];
-
-                          final bool isMine =
-                              msg['idUser'] ==
-                              currentUserId;
-
-                          return Align(
-
-                            alignment: isMine
-                                ? Alignment.centerRight
-                                : Alignment.centerLeft,
-
-                            child: Container(
-
-                              margin:
-                                  EdgeInsets.only(
-                                      bottom: 12),
-
-                              padding:
-                                  EdgeInsets.symmetric(
-                                horizontal: 16,
-                                vertical: 12,
+                            boxShadow: [
+                              BoxShadow(
+                                color: Colors.grey.shade200,
+                                blurRadius: 8,
+                                offset: Offset(0, 4),
                               ),
+                            ],
+                          ),
 
-                              constraints:
-                                  BoxConstraints(
-                                maxWidth:
-                                    MediaQuery.of(context)
-                                            .size
-                                            .width *
-                                        0.75,
-                              ),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
 
-                              decoration:
-                                  BoxDecoration(
+                            children: [
+                              if (!isMine)
+                                Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
 
-                                color: isMine
-                                    ? Color(0xFF5F2C82)
-                                    : Colors.white,
-
-                                borderRadius:
-                                    BorderRadius.circular(
-                                        18),
-
-                                boxShadow: [
-
-                                  BoxShadow(
-                                    color: Colors.grey.shade200,
-                                    blurRadius: 8,
-                                    offset: Offset(0,4),
-                                  )
-                                ],
-                              ),
-
-                              child: Column(
-
-                                crossAxisAlignment:
-                                    CrossAxisAlignment.start,
-
-                                children: [
-
-                                  if(!isMine)
-
-                                    Column(
-
-                                      crossAxisAlignment:
-                                          CrossAxisAlignment.start,
-
+                                  children: [
+                                    Row(
                                       children: [
+                                        Text(
+                                          msg['fullName'] ?? '',
 
-                                        Row(
-
-                                          children: [
-
-                                            Text(
-
-                                              msg['fullName'] ?? '',
-
-                                              style: TextStyle(
-                                                fontWeight: FontWeight.bold,
-                                                color: Color(0xFF5F2C82),
-                                                fontSize: 12,
-                                              ),
-                                            ),
-
-                                            SizedBox(width: 8),
-
-                                            Container(
-
-                                              padding:
-                                                  EdgeInsets.symmetric(
-                                                horizontal: 8,
-                                                vertical: 3,
-                                              ),
-
-                                              decoration:
-                                                  BoxDecoration(
-
-                                                color: msg['isDriver']
-                                                    ? Colors.green
-                                                    : Colors.red,
-
-                                                borderRadius:
-                                                    BorderRadius.circular(
-                                                        10),
-                                              ),
-
-                                              child: Text(
-
-                                                msg['isDriver']
-                                                    ? "Conductor"
-                                                    : "Pasajero",
-
-                                                style: TextStyle(
-                                                  color: Colors.white,
-                                                  fontSize: 10,
-                                                  fontWeight:
-                                                      FontWeight.bold,
-                                                ),
-                                              ),
-                                            ),
-                                          ],
+                                          style: TextStyle(
+                                            fontWeight: FontWeight.bold,
+                                            color: Color(0xFF5F2C82),
+                                            fontSize: 12,
+                                          ),
                                         ),
 
-                                        SizedBox(height: 5),
+                                        SizedBox(width: 8),
+
+                                        Container(
+                                          padding: EdgeInsets.symmetric(
+                                            horizontal: 8,
+                                            vertical: 3,
+                                          ),
+
+                                          decoration: BoxDecoration(
+                                            color: msg['isDriver']
+                                                ? Colors.green
+                                                : Colors.red,
+
+                                            borderRadius: BorderRadius.circular(
+                                              10,
+                                            ),
+                                          ),
+
+                                          child: Text(
+                                            msg['isDriver']
+                                                ? "Conductor"
+                                                : "Pasajero",
+
+                                            style: TextStyle(
+                                              color: Colors.white,
+                                              fontSize: 10,
+                                              fontWeight: FontWeight.bold,
+                                            ),
+                                          ),
+                                        ),
                                       ],
                                     ),
 
-                                  Text(
+                                    SizedBox(height: 5),
+                                  ],
+                                ),
 
-                                    msg['text'] ?? '',
+                              Text(
+                                msg['text'] ?? '',
 
-                                    style: TextStyle(
+                                style: TextStyle(
+                                  color: isMine ? Colors.white : Colors.black87,
 
-                                      color: isMine
-                                          ? Colors.white
-                                          : Colors.black87,
-
-                                      fontSize: 15,
-                                    ),
-                                  ),
-                                ],
+                                  fontSize: 15,
+                                ),
                               ),
-                            ),
-                          );
-                        },
-                      ),
+                            ],
+                          ),
+                        ),
+                      );
+                    },
+                  ),
           ),
 
           Container(
-
-            padding: EdgeInsets.fromLTRB(
-                16,
-                12,
-                16,
-                20),
+            padding: EdgeInsets.fromLTRB(16, 12, 16, 20),
 
             decoration: BoxDecoration(
-
               color: Colors.white,
 
               boxShadow: [
-
                 BoxShadow(
                   color: Colors.grey.shade200,
                   blurRadius: 10,
-                  offset: Offset(0,-2),
-                )
+                  offset: Offset(0, -2),
+                ),
               ],
             ),
 
             child: Row(
-
               children: [
-
                 Expanded(
-
                   child: TextField(
-
                     controller: messageController,
 
                     decoration: InputDecoration(
-
-                      hintText:
-                          "Escribe un mensaje...",
+                      hintText: "Escribe un mensaje...",
 
                       filled: true,
 
-                      fillColor:
-                          Colors.grey.shade100,
+                      fillColor: Colors.grey.shade100,
 
-                      contentPadding:
-                          EdgeInsets.symmetric(
+                      contentPadding: EdgeInsets.symmetric(
                         horizontal: 20,
                         vertical: 14,
                       ),
 
                       border: OutlineInputBorder(
-                        borderRadius:
-                            BorderRadius.circular(30),
+                        borderRadius: BorderRadius.circular(30),
                         borderSide: BorderSide.none,
                       ),
                     ),
@@ -460,29 +325,20 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
                 SizedBox(width: 10),
 
                 GestureDetector(
-
                   onTap: sendMessage,
 
                   child: Container(
-
                     padding: EdgeInsets.all(14),
 
                     decoration: BoxDecoration(
-
                       gradient: LinearGradient(
-                        colors: [
-                          Color(0xFF5F2C82),
-                          Color(0xFF49A09D),
-                        ],
+                        colors: [Color(0xFF5F2C82), Color(0xFF49A09D)],
                       ),
 
                       shape: BoxShape.circle,
                     ),
 
-                    child: Icon(
-                      Icons.send,
-                      color: Colors.white,
-                    ),
+                    child: Icon(Icons.send, color: Colors.white),
                   ),
                 ),
               ],
