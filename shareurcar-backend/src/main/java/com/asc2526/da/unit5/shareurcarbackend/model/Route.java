@@ -69,7 +69,7 @@ public class Route {
     @Column(name = "driver_confirmed")
     private Boolean driverConfirmed = false;
 
-    public boolean isDriverConfirmed() {
+    public Boolean isDriverConfirmed() {
         return driverConfirmed;
     }
 }

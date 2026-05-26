@@ -84,7 +84,7 @@ public class RouteService {
         List<Map<String,Object>> result = new java.util.ArrayList<>();
         for(Route route : routes) {
             User driver = userRepository.findUserByIdUser(route.getIdDriver()).orElseThrow();
-            Driver driverCar = driverRepository.findByIdDriver(route.getIdDriver()).orElseThrow();
+            Driver driverCar = driverRepository.findByIdDriver(route.getIdDriver()).orElse(null);
             Map<String,Object> map = new java.util.HashMap<>();
 
             map.put("idRoute",route.getIdRoute());
@@ -101,15 +101,14 @@ public class RouteService {
             map.put("frequency",route.getFrequency());
             map.put("available_seats",route.getAvailable_seats());
             map.put("status",route.getStatus());
-            map.put("driverConfirmed",route.isDriverConfirmed());
+            map.put("driverConfirmed",route.getDriverConfirmed());
             map.put("passengers",route.getPassengers());
             map.put("driverName", driver.getFirstname() + " " + driver.getLastname());
-            map.put("maxSeats", driverCar.getMaxSeats());
+            map.put("maxSeats", driverCar != null ? driverCar.getMaxSeats() : 4);
             result.add(map);
         }
         return result;
     }
-
     public void deleteRoute(Integer id) {
         routeRepository.deleteById(id);
     }
