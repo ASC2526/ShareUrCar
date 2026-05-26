@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:http/http.dart' as http;
 
 class ApiService {
@@ -89,7 +90,7 @@ class ApiService {
     }
   }
 
-  static const String mapboxToken = "pk.eyJ1IjoiYWxlc2FuY29yNyIsImEiOiJjbXBsaXBmd2IwNGp5MnRxdWZkM3V5MWp3In0.7UFrSYwmDI3Cq9dA-cgeyA";
+  static final String mapboxToken = dotenv.env['MAPBOX_TOKEN'] ?? '';
 
   static Future<List<Map<String, dynamic>>> getAddressSuggestions(String query) async {
     if (query.length < 3) return []; 
@@ -249,7 +250,7 @@ class ApiService {
 
   static Future<void> confirmParticipation(int routeId, int userId) async {
     final url = Uri.parse("$baseUrl/routes/$routeId/confirm/$userId");
-    final response = await http.patch(url); // Usamos PATCH porque es una confirmación
+    final response = await http.patch(url); 
 
     if (response.statusCode != 200) {
       throw Exception("Error al confirmar: ${response.body}");
