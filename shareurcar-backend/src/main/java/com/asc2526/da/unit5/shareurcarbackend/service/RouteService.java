@@ -19,13 +19,15 @@ public class RouteService {
     private final UserRepository userRepository;
     private final TravelGroupRepository travelGroupRepository;
     private final GroupPassengerRepository groupPassengerRepository;
+    private final PaymentRepository paymentRepository;
 
-    public RouteService(RouteRepository routeRepository, DriverRepository driverRepository, UserRepository userRepository, TravelGroupRepository travelGroupRepository, GroupPassengerRepository groupPassengerRepository) {
+    public RouteService(RouteRepository routeRepository, DriverRepository driverRepository, UserRepository userRepository, TravelGroupRepository travelGroupRepository, GroupPassengerRepository groupPassengerRepository, PaymentRepository paymentRepository) {
         this.routeRepository = routeRepository;
         this.driverRepository = driverRepository;
         this.userRepository = userRepository;
         this.travelGroupRepository = travelGroupRepository;
         this.groupPassengerRepository = groupPassengerRepository;
+        this.paymentRepository = paymentRepository;
     }
 
     public List<Route> getAllRoutes() {
@@ -105,6 +107,7 @@ public class RouteService {
             map.put("passengers",route.getPassengers());
             map.put("driverName", driver.getFirstname() + " " + driver.getLastname());
             map.put("maxSeats", driverCar != null ? driverCar.getMaxSeats() : 4);
+            map.put("allowRoundTrip", route.getAllowRoundTrip());
             result.add(map);
         }
         return result;
@@ -118,58 +121,150 @@ public class RouteService {
         return routeRepository.findNearbyRoutes(originLat, originLng, destLat, destLng, searchRadiusKm);
     }
 
-    @Transactional
-    public void joinRoute(Integer routeId, Integer userId) {
+    private double calculateDistanceKm(double lat1, double lon1, double lat2, double lon2) {
+        final int R = 6371;
+        double latDistance = Math.toRadians(lat2 - lat1);
+        double lonDistance = Math.toRadians(lon2 - lon1);
+        double a = Math.sin(latDistance / 2)
+                        * Math.sin(latDistance / 2)
+                        + Math.cos(Math.toRadians(lat1))
+                        * Math.cos(Math.toRadians(lat2))
+                        * Math.sin(lonDistance / 2)
+                        * Math.sin(lonDistance / 2);
+        double c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+        return R * c;
+    }
 
-        if (routeId == null || userId == null) throw new IllegalArgumentException("La ruta o el usuario no pueden ser nulos");
+    private double calculateTripPrice(Route route, int passengers, boolean roundTrip) {
+
+        double gasolina = 1.60;
+        double consumo = 6.0;
+
+        double km =
+                calculateDistanceKm(
+                        route.getOriginLat(),
+                        route.getOriginLng(),
+                        route.getDestinationLat(),
+                        route.getDestinationLng());
+
+        if(roundTrip) {
+            km *= 1.7;
+        }
+        double coste = (km * consumo * gasolina) / 100;
+        double porcentaje;
+
+        switch(passengers) {
+            case 1:
+                porcentaje = 0.20;
+                break;
+            case 2:
+                porcentaje = 0.35;
+                break;
+            case 3:
+                porcentaje = 0.50;
+                break;
+            default:
+                porcentaje = 0.65;
+                break;
+        }
+        double costePasajeros = coste * porcentaje;
+        double precioBase = costePasajeros / passengers;
+        double precioFinal = precioBase * 1.10;
+        if(precioFinal < 1.80) {
+            precioFinal = 1.80;
+        }
+        return Math.round(precioFinal * 100.0) / 100.0;
+    }
+
+    @Transactional
+    public void joinRoute(Integer routeId, Integer userId, boolean roundTrip) {
+
+        if(routeId == null || userId == null) {
+            throw new IllegalArgumentException("La ruta o el usuario no pueden ser nulos");
+        }
+
         Route route = routeRepository.findById(routeId).orElseThrow(() -> new RuntimeException("La ruta no existe"));
+
         User user = userRepository.findUserByIdUser(userId).orElseThrow(() -> new RuntimeException("El usuario no existe"));
 
-        if (route.getAvailable_seats() <= 0) {
+        if(route.getAvailable_seats() <= 0) {
             throw new NoAvailableSeatsException("Lo siento, ya no quedan plazas libres");
         }
-        if (route.getIdDriver().equals(userId)) {
+
+        if(route.getIdDriver().equals(userId)) {
             throw new YourOwnRouteException("No puedes unirte a tu propia ruta como pasajero");
         }
-        if (route.getPassengers().contains(user)) {
+
+        if(route.getPassengers().contains(user)) {
             throw new AlreadyExistsException("Ya estás unido a esta ruta");
         }
 
-        route.getPassengers().add(user);
-        route.setAvailable_seats(route.getAvailable_seats() - 1);
+        if(roundTrip && !Boolean.TRUE.equals(route.getAllowRoundTrip())) {
+            throw new RuntimeException("Esta ruta no permite ida y vuelta");
+        }
+
+        int pasajeros = route.getPassengers().size() + 1;
+        double amount = calculateTripPrice(route, pasajeros, roundTrip);
+        double balance = user.getBalance() != null ? user.getBalance() : 0.0;
+        double held = user.getHeldBalance() != null ? user.getHeldBalance() : 0.0;
+        double disponible = balance - held;
+
+        if(disponible < amount) {
+            throw new RuntimeException("Saldo insuficiente");
+        }
         TravelGroup group = travelGroupRepository.findByIdRoute(routeId).orElseThrow();
         GroupPassenger passenger = new GroupPassenger();
-
         passenger.setIdGroup(group.getIdGroup());
         passenger.setIdUser(userId);
         passenger.setState("ACTIVE");
         passenger.setConfirmed(false);
-
         groupPassengerRepository.save(passenger);
+
+        route.getPassengers().add(user);
+        route.setAvailable_seats(route.getAvailable_seats() - 1);
+
+        Payment payment = new Payment();
+        payment.setIdGroup(group.getIdGroup());
+        payment.setIdUser(userId);
+        payment.setAmount(amount);
+        payment.setPaymentStatus("PENDING");
+        payment.setTripType(roundTrip ? "ROUND_TRIP" : "ONE_WAY");
+        payment.setCreatedAt(LocalDateTime.now());
+        paymentRepository.save(payment);
+
+        user.setHeldBalance(held + amount);
         routeRepository.save(route);
+        userRepository.save(user);
     }
 
     @Transactional
     public void leaveRoute(Integer routeId, Integer userId) {
-        Route route = routeRepository.findById(routeId)
-                .orElseThrow(() -> new RuntimeException("La ruta no existe"));
 
-        User user = userRepository.findUserByIdUser(userId)
-                .orElseThrow(() -> new RuntimeException("El usuario no existe"));
+        Route route = routeRepository.findById(routeId).orElseThrow(() -> new RuntimeException("La ruta no existe"));
+        User user = userRepository.findUserByIdUser(userId).orElseThrow(() -> new RuntimeException("El usuario no existe"));
 
-        if (route.getIdDriver().equals(userId)) {
+        if(route.getIdDriver().equals(userId)) {
             throw new RuntimeException("Eres el conductor, no puedes abandonar la ruta como pasajero. Debes cancelarla entera.");
         }
-        if (!route.getPassengers().contains(user)) {
+
+        if(!route.getPassengers().contains(user)) {
             throw new RuntimeException("No estás unido a esta ruta");
         }
-
-        route.getPassengers().remove(user);
-        route.setAvailable_seats(route.getAvailable_seats() + 1);
-
         TravelGroup group = travelGroupRepository.findByIdRoute(routeId).orElseThrow();
         GroupPassenger gp = groupPassengerRepository.findByIdGroupAndIdUser(group.getIdGroup(), userId).orElseThrow();
+        List<Payment> payments = paymentRepository.findByGroup(group.getIdGroup());
 
+        for(Payment payment : payments) {
+            if(payment.getIdUser().equals(userId)) {
+                double held = user.getHeldBalance() != null ? user.getHeldBalance() : 0.0;
+
+                user.setHeldBalance(Math.max(0, held - payment.getAmount()));
+                userRepository.save(user);
+                paymentRepository.delete(payment);
+            }
+        }
+        route.getPassengers().remove(user);
+        route.setAvailable_seats(route.getAvailable_seats() + 1);
         groupPassengerRepository.delete(gp);
         routeRepository.save(route);
     }
@@ -235,13 +330,18 @@ public class RouteService {
     private boolean checkAllConfirmed(Route route, TravelGroup group) {
         if (!route.isDriverConfirmed())
             return false;
-
         List<GroupPassenger> passengers = groupPassengerRepository.findByIdGroup(group.getIdGroup());
-
         for (GroupPassenger p : passengers) {
             if (!p.isConfirmed())
                 return false;
         }
         return true;
     }
+
+    public double calculatePrice(Integer routeId, Integer userId, boolean roundTrip) {
+        Route route = routeRepository.findById(routeId).orElseThrow(() -> new RuntimeException("Ruta no encontrada"));
+        int passengers = route.getPassengers().size() + 1;
+        return calculateTripPrice(route, passengers, roundTrip);
+    }
+
 }

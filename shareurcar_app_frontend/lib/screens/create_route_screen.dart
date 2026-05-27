@@ -42,6 +42,7 @@ class _CreateRouteScreenState extends State<CreateRouteScreen> {
   bool prefEquipaje = false;
   bool prefMusica = false;
   bool prefFumar = false;
+  bool allowRoundTrip = false;
 
   bool isLoading = false;
   Timer? _debounce;
@@ -191,6 +192,7 @@ class _CreateRouteScreenState extends State<CreateRouteScreen> {
         "days_of_week": daysOfWeek,
         "travel_date": travelDate,
         "available_seats": plazas,
+        "allowRoundTrip": allowRoundTrip,
       });
 
       if (!mounted) return;
@@ -577,99 +579,146 @@ class _CreateRouteScreenState extends State<CreateRouteScreen> {
               // detalles
               _buildContainer(
                 title: "Detalles",
-                child: Row(
+                child: Column(
                   children: [
-                    Expanded(
-                      child: InkWell(
-                        onTap: () => _seleccionarHora(context),
-                        child: Container(
-                          padding: EdgeInsets.all(16),
-                          decoration: BoxDecoration(
-                            border: Border.all(color: Colors.grey.shade300),
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                "Hora de salida",
-                                style: TextStyle(
-                                  color: Colors.grey.shade600,
-                                  fontSize: 12,
-                                ),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: InkWell(
+                            onTap: () => _seleccionarHora(context),
+                            child: Container(
+                              padding: EdgeInsets.all(16),
+                              decoration: BoxDecoration(
+                                border: Border.all(color: Colors.grey.shade300),
+                                borderRadius: BorderRadius.circular(12),
                               ),
-                              SizedBox(height: 5),
-                              Row(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
-                                  Icon(
-                                    Icons.access_time,
-                                    size: 18,
-                                    color: Color(0xFF49A09D),
-                                  ),
-                                  SizedBox(width: 10),
                                   Text(
-                                    horaSalida.format(context),
+                                    "Hora de salida",
                                     style: TextStyle(
-                                      fontSize: 16,
-                                      fontWeight: FontWeight.bold,
+                                      color: Colors.grey.shade600,
+                                      fontSize: 12,
                                     ),
+                                  ),
+
+                                  SizedBox(height: 5),
+
+                                  Row(
+                                    children: [
+                                      Icon(
+                                        Icons.access_time,
+                                        size: 18,
+                                        color: Color(0xFF49A09D),
+                                      ),
+
+                                      SizedBox(width: 10),
+
+                                      Text(
+                                        horaSalida.format(context),
+                                        style: TextStyle(
+                                          fontSize: 16,
+                                          fontWeight: FontWeight.bold,
+                                        ),
+                                      ),
+                                    ],
                                   ),
                                 ],
                               ),
-                            ],
+                            ),
                           ),
                         ),
-                      ),
-                    ),
-                    SizedBox(width: 15),
-                    Expanded(
-                      child: Container(
-                        padding: EdgeInsets.all(6),
-                        decoration: BoxDecoration(
-                          border: Border.all(color: Colors.grey.shade300),
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Padding(
-                              padding: const EdgeInsets.only(left: 10, top: 4),
-                              child: Text(
-                                "Asientos libres",
-                                style: TextStyle(
-                                  color: Colors.grey.shade600,
-                                  fontSize: 12,
-                                ),
-                              ),
+
+                        SizedBox(width: 15),
+
+                        Expanded(
+                          child: Container(
+                            padding: EdgeInsets.all(6),
+                            decoration: BoxDecoration(
+                              border: Border.all(color: Colors.grey.shade300),
+                              borderRadius: BorderRadius.circular(12),
                             ),
-                            Row(
-                              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
-                                IconButton(
-                                  icon: Icon(Icons.remove_circle_outline),
-                                  onPressed: plazas > 1
-                                      ? () => setState(() => plazas--)
-                                      : null,
-                                  color: Colors.red.shade300,
-                                ),
-                                Text(
-                                  "$plazas",
-                                  style: TextStyle(
-                                    fontSize: 18,
-                                    fontWeight: FontWeight.bold,
+                                Padding(
+                                  padding: const EdgeInsets.only(
+                                    left: 10,
+                                    top: 4,
+                                  ),
+                                  child: Text(
+                                    "Asientos libres",
+                                    style: TextStyle(
+                                      color: Colors.grey.shade600,
+                                      fontSize: 12,
+                                    ),
                                   ),
                                 ),
-                                IconButton(
-                                  icon: Icon(Icons.add_circle_outline),
-                                  onPressed: plazas < 6
-                                      ? () => setState(() => plazas++)
-                                      : null,
-                                  color: Colors.green.shade400,
+
+                                Row(
+                                  mainAxisAlignment:
+                                      MainAxisAlignment.spaceEvenly,
+                                  children: [
+                                    IconButton(
+                                      icon: Icon(Icons.remove_circle_outline),
+
+                                      onPressed: plazas > 1
+                                          ? () => setState(() => plazas--)
+                                          : null,
+
+                                      color: Colors.red.shade300,
+                                    ),
+
+                                    Text(
+                                      "$plazas",
+                                      style: TextStyle(
+                                        fontSize: 18,
+                                        fontWeight: FontWeight.bold,
+                                      ),
+                                    ),
+
+                                    IconButton(
+                                      icon: Icon(Icons.add_circle_outline),
+
+                                      onPressed: plazas < 6
+                                          ? () => setState(() => plazas++)
+                                          : null,
+
+                                      color: Colors.green.shade400,
+                                    ),
+                                  ],
                                 ),
                               ],
                             ),
-                          ],
+                          ),
                         ),
+                      ],
+                    ),
+
+                    SizedBox(height: 15),
+
+                    CheckboxListTile(
+                      value: allowRoundTrip,
+
+                      onChanged: (value) {
+                        setState(() {
+                          allowRoundTrip = value!;
+                        });
+                      },
+
+                      activeColor: Color(0xFF5F2C82),
+
+                      contentPadding: EdgeInsets.zero,
+
+                      title: Text(
+                        "Permitir ida y vuelta",
+                        style: TextStyle(fontWeight: FontWeight.w600),
+                      ),
+
+                      subtitle: Text(
+                        "Los pasajeros podrán reservar regreso",
+                        style: TextStyle(fontSize: 12),
                       ),
                     ),
                   ],

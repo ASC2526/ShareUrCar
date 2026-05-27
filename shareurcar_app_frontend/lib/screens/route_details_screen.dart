@@ -15,45 +15,53 @@ class RouteDetailsScreen extends StatefulWidget {
 
 class _RouteDetailsScreenState extends State<RouteDetailsScreen> {
   bool isLoading = false;
+  bool roundTrip = false;
 
   void unirseARuta() async {
     setState(() => isLoading = true);
+
     try {
-      // buscamos el ID de la ruta en todos los formatos posibles
       var rawRouteId =
           widget.ruta['id_route'] ??
           widget.ruta['idRoute'] ??
           widget.ruta['id'];
+
       var rawUserId =
           widget.user['idUser'] ?? widget.user['id_user'] ?? widget.user['id'];
 
-      if (rawRouteId == null)
+      if (rawRouteId == null) {
         throw Exception(
           "No se ha podido encontrar el ID de la ruta en la base de datos.",
         );
-      if (rawUserId == null)
-        throw Exception("No se ha podido encontrar el ID de tu usuario.");
+      }
 
-      // los convertimos a int
+      if (rawUserId == null) {
+        throw Exception("No se ha podido encontrar el ID de tu usuario.");
+      }
+
       final int finalRouteId = rawRouteId is int
           ? rawRouteId
           : int.parse(rawRouteId.toString());
+
       final int finalUserId = rawUserId is int
           ? rawUserId
           : int.parse(rawUserId.toString());
 
-      await ApiService.joinRoute(finalRouteId, finalUserId);
+      await ApiService.joinRoute(finalRouteId, finalUserId, roundTrip);
 
       if (!mounted) return;
+
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text("¡Te has unido a la ruta con éxito!"),
           backgroundColor: Colors.green,
         ),
       );
+
       Navigator.pop(context, true);
     } catch (e) {
       if (!mounted) return;
+
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(e.toString().replaceAll("Exception: ", "")),
@@ -61,20 +69,266 @@ class _RouteDetailsScreenState extends State<RouteDetailsScreen> {
         ),
       );
     } finally {
-      if (mounted) setState(() => isLoading = false);
+      if (mounted) {
+        setState(() => isLoading = false);
+      }
     }
   }
 
   String _limpiarDireccion(String dir) =>
       dir.replaceAll(", Alicante", "").trim();
+
   String _formatearHora(String hora) =>
       hora.length >= 5 ? hora.substring(0, 5) : hora;
+
+  void _showJoinModal() {
+    bool localRoundTrip = false;
+
+    bool allowRoundTrip =
+        widget.ruta['allowRoundTrip'] == true ||
+        widget.ruta['allow_round_trip'] == true;
+
+    double precio = 0;
+
+    showModalBottomSheet(
+      context: context,
+
+      backgroundColor: Colors.transparent,
+
+      builder: (_) {
+        return StatefulBuilder(
+          builder: (context, setModalState) {
+            Future<void> actualizarPrecio() async {
+              try {
+                final routeId =
+                    widget.ruta['idRoute'] ??
+                    widget.ruta['id_route'] ??
+                    widget.ruta['id'];
+
+                final userId =
+                    widget.user['idUser'] ??
+                    widget.user['id_user'] ??
+                    widget.user['id'];
+
+                final result = await ApiService.calculateRoutePrice(
+                  routeId,
+                  userId,
+                  localRoundTrip,
+                );
+
+                setModalState(() {
+                  precio = result;
+                });
+              } catch (e) {
+                print(e);
+              }
+            }
+
+            WidgetsBinding.instance.addPostFrameCallback((_) {
+              actualizarPrecio();
+            });
+
+            return Container(
+              padding: EdgeInsets.all(25),
+
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.vertical(top: Radius.circular(25)),
+              ),
+
+              child: SingleChildScrollView(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+
+                  crossAxisAlignment: CrossAxisAlignment.start,
+
+                  children: [
+                    Center(
+                      child: Container(
+                        width: 50,
+                        height: 5,
+                        decoration: BoxDecoration(
+                          color: Colors.grey.shade300,
+                          borderRadius: BorderRadius.circular(20),
+                        ),
+                      ),
+                    ),
+
+                    SizedBox(height: 25),
+
+                    Text(
+                      "Selecciona tu viaje",
+                      style: TextStyle(
+                        fontSize: 22,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+
+                    SizedBox(height: 20),
+
+                    if (!allowRoundTrip)
+                      Container(
+                        width: double.infinity,
+
+                        padding: EdgeInsets.all(14),
+
+                        decoration: BoxDecoration(
+                          color: Colors.blue.shade50,
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+
+                        child: Row(
+                          children: [
+                            Icon(Icons.info_outline, color: Colors.blue),
+
+                            SizedBox(width: 10),
+
+                            Expanded(
+                              child: Text(
+                                "Esta ruta solo permite viaje de ida",
+                                style: TextStyle(
+                                  color: Colors.blue.shade900,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+
+                    if (allowRoundTrip) ...[
+                      RadioListTile(
+                        value: false,
+
+                        groupValue: localRoundTrip,
+
+                        activeColor: Color(0xFF5F2C82),
+
+                        title: Text("Solo ida"),
+
+                        subtitle: Text("Reserva únicamente el trayecto de ida"),
+
+                        onChanged: (value) async {
+                          localRoundTrip = value!;
+
+                          await actualizarPrecio();
+                        },
+                      ),
+
+                      RadioListTile(
+                        value: true,
+
+                        groupValue: localRoundTrip,
+
+                        activeColor: Color(0xFF5F2C82),
+
+                        title: Text("Ida y vuelta"),
+
+                        subtitle: Text("Incluye trayecto de regreso"),
+
+                        onChanged: (value) async {
+                          localRoundTrip = value!;
+
+                          await actualizarPrecio();
+                        },
+                      ),
+                    ],
+
+                    SizedBox(height: 20),
+
+                    Container(
+                      width: double.infinity,
+
+                      padding: EdgeInsets.all(18),
+
+                      decoration: BoxDecoration(
+                        color: Color(0xFFF3E5F5),
+                        borderRadius: BorderRadius.circular(15),
+                      ),
+
+                      child: Column(
+                        children: [
+                          Text(
+                            "Precio estimado",
+                            style: TextStyle(
+                              fontSize: 14,
+                              color: Colors.grey.shade700,
+                            ),
+                          ),
+
+                          SizedBox(height: 10),
+
+                          Text(
+                            "${precio.toStringAsFixed(2)} €",
+                            style: TextStyle(
+                              fontSize: 34,
+                              fontWeight: FontWeight.bold,
+                              color: Color(0xFF5F2C82),
+                            ),
+                          ),
+
+                          SizedBox(height: 8),
+
+                          Text(
+                            "Incluye gastos compartidos y comisión de servicio",
+                            textAlign: TextAlign.center,
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: Colors.grey.shade600,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+
+                    SizedBox(height: 25),
+
+                    SizedBox(
+                      width: double.infinity,
+
+                      child: ElevatedButton(
+                        onPressed: () {
+                          roundTrip = localRoundTrip;
+
+                          Navigator.pop(context);
+
+                          unirseARuta();
+                        },
+
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Color(0xFF5F2C82),
+                          padding: EdgeInsets.symmetric(vertical: 16),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(14),
+                          ),
+                        ),
+
+                        child: Text(
+                          "Confirmar reserva",
+                          style: TextStyle(
+                            color: Colors.white,
+                            fontSize: 16,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ),
+                    ),
+
+                    SizedBox(height: 15),
+                  ],
+                ),
+              ),
+            );
+          },
+        );
+      },
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
     final lat = widget.ruta['origin_lat'] ?? 38.3452;
     final lng = widget.ruta['origin_lng'] ?? -0.4810;
-
     final currentUserId =
         widget.user['idUser'] ?? widget.user['id_user'] ?? widget.user['id'];
     final driverId = widget.ruta['idDriver'] ?? widget.ruta['id_driver'];
@@ -85,44 +339,56 @@ class _RouteDetailsScreenState extends State<RouteDetailsScreen> {
     if (widget.ruta['passengers'] != null) {
       yaUnido = (widget.ruta['passengers'] as List).any((p) {
         final pid = p['idUser'] ?? p['id_user'] ?? p['id'];
+
         return pid == currentUserId;
       });
     }
 
     return Scaffold(
       backgroundColor: Colors.grey.shade100,
+
       appBar: AppBar(
         title: Text(
           "Detalles de la ruta",
           style: TextStyle(color: Colors.black, fontWeight: FontWeight.bold),
         ),
+
         backgroundColor: Colors.white,
+
         elevation: 0,
+
         leading: BackButton(color: Colors.black),
+
         centerTitle: true,
       ),
+
       body: Column(
         children: [
-          // MAPA SUPERIOR
           SizedBox(
             height: 250,
+
             width: double.infinity,
+
             child: FlutterMap(
               options: MapOptions(
                 initialCenter: LatLng(lat, lng),
                 initialZoom: 14.0,
               ),
+
               children: [
                 TileLayer(
                   urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
                   userAgentPackageName: 'com.asc2526.shareurcar',
                 ),
+
                 MarkerLayer(
                   markers: [
                     Marker(
                       point: LatLng(lat, lng),
+
                       width: 40,
                       height: 40,
+
                       child: Icon(
                         Icons.location_on,
                         color: Colors.blue.shade600,
@@ -135,15 +401,17 @@ class _RouteDetailsScreenState extends State<RouteDetailsScreen> {
             ),
           ),
 
-          // INFORMACIÓN DE LA RUTA
           Expanded(
             child: SingleChildScrollView(
               padding: EdgeInsets.all(20),
+
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
+
                 children: [
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
+
                     children: [
                       Text(
                         "Información del viaje",
@@ -152,15 +420,18 @@ class _RouteDetailsScreenState extends State<RouteDetailsScreen> {
                           fontWeight: FontWeight.bold,
                         ),
                       ),
+
                       Container(
                         padding: EdgeInsets.symmetric(
                           horizontal: 12,
                           vertical: 6,
                         ),
+
                         decoration: BoxDecoration(
                           color: Colors.green.shade50,
                           borderRadius: BorderRadius.circular(20),
                         ),
+
                         child: Text(
                           "${widget.ruta['available_seats']} plazas libres",
                           style: TextStyle(
@@ -171,16 +442,18 @@ class _RouteDetailsScreenState extends State<RouteDetailsScreen> {
                       ),
                     ],
                   ),
+
                   SizedBox(height: 20),
 
-                  // Tarjeta de origen y destino
                   Container(
                     padding: EdgeInsets.all(15),
+
                     decoration: BoxDecoration(
                       color: Colors.white,
                       borderRadius: BorderRadius.circular(12),
                       border: Border.all(color: Colors.grey.shade200),
                     ),
+
                     child: Column(
                       children: [
                         Row(
@@ -190,7 +463,9 @@ class _RouteDetailsScreenState extends State<RouteDetailsScreen> {
                               color: Colors.blue.shade600,
                               size: 20,
                             ),
+
                             SizedBox(width: 15),
+
                             Expanded(
                               child: Text(
                                 _limpiarDireccion(
@@ -199,6 +474,7 @@ class _RouteDetailsScreenState extends State<RouteDetailsScreen> {
                                 style: TextStyle(fontSize: 16),
                               ),
                             ),
+
                             Text(
                               _formatearHora(
                                 widget.ruta['departure_time'].toString(),
@@ -210,10 +486,13 @@ class _RouteDetailsScreenState extends State<RouteDetailsScreen> {
                             ),
                           ],
                         ),
+
                         Padding(
                           padding: EdgeInsets.only(left: 9),
+
                           child: Align(
                             alignment: Alignment.centerLeft,
+
                             child: Container(
                               height: 30,
                               width: 2,
@@ -221,6 +500,7 @@ class _RouteDetailsScreenState extends State<RouteDetailsScreen> {
                             ),
                           ),
                         ),
+
                         Row(
                           children: [
                             Icon(
@@ -228,7 +508,9 @@ class _RouteDetailsScreenState extends State<RouteDetailsScreen> {
                               color: Colors.red,
                               size: 20,
                             ),
+
                             SizedBox(width: 15),
+
                             Expanded(
                               child: Text(
                                 _limpiarDireccion(
@@ -240,6 +522,7 @@ class _RouteDetailsScreenState extends State<RouteDetailsScreen> {
                                 ),
                               ),
                             ),
+
                             Text(
                               widget.ruta['arrival_time'] != null
                                   ? _formatearHora(
@@ -259,11 +542,12 @@ class _RouteDetailsScreenState extends State<RouteDetailsScreen> {
 
                   SizedBox(height: 20),
 
-                  // Frecuencia
                   Row(
                     children: [
                       Icon(Icons.repeat, color: Colors.grey.shade600),
+
                       SizedBox(width: 10),
+
                       Text(
                         "Frecuencia: ${widget.ruta['frequency'] ?? 'Puntual'}",
                         style: TextStyle(
@@ -273,18 +557,129 @@ class _RouteDetailsScreenState extends State<RouteDetailsScreen> {
                       ),
                     ],
                   ),
+                  SizedBox(height: 25),
 
+                  Container(
+                    width: double.infinity,
+
+                    padding: EdgeInsets.all(18),
+
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(14),
+                      border: Border.all(color: Colors.grey.shade200),
+                    ),
+
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+
+                      children: [
+                        Row(
+                          children: [
+                            Icon(
+                              Icons.payments_outlined,
+                              color: Color(0xFF5F2C82),
+                            ),
+
+                            SizedBox(width: 10),
+
+                            Text(
+                              "Información del viaje",
+                              style: TextStyle(
+                                fontSize: 17,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                          ],
+                        ),
+
+                        SizedBox(height: 20),
+
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+
+                          children: [
+                            Text(
+                              "Precio estimado",
+                              style: TextStyle(
+                                fontSize: 15,
+                                color: Colors.grey.shade700,
+                              ),
+                            ),
+
+                            Text(
+                              "Calculado al reservar",
+                              style: TextStyle(
+                                fontSize: 24,
+                                fontWeight: FontWeight.bold,
+                                color: Color(0xFF5F2C82),
+                              ),
+                            ),
+                          ],
+                        ),
+
+                        SizedBox(height: 18),
+
+                        Row(
+                          children: [
+                            Checkbox(
+                              value:
+                                  widget.ruta['allowRoundTrip'] == true ||
+                                  widget.ruta['allow_round_trip'] == true,
+
+                              onChanged: null,
+
+                              activeColor: Color(0xFF5F2C82),
+                            ),
+
+                            Expanded(
+                              child: Text(
+                                "Permite ida y vuelta",
+                                style: TextStyle(
+                                  fontSize: 15,
+                                  color: Colors.grey.shade800,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+
+                        SizedBox(height: 8),
+
+                        Row(
+                          children: [
+                            Icon(
+                              Icons.people_alt_outlined,
+                              color: Colors.grey.shade600,
+                            ),
+
+                            SizedBox(width: 10),
+
+                            Text(
+                              "Viaje compartido",
+                              style: TextStyle(
+                                fontSize: 15,
+                                color: Colors.grey.shade700,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
+                  ),
                   SizedBox(height: 40),
 
-                  // BOTÓN UNIRSE
                   esMiRuta
                       ? Container(
                           width: double.infinity,
+
                           padding: EdgeInsets.symmetric(vertical: 16),
+
                           decoration: BoxDecoration(
                             color: Colors.grey.shade200,
                             borderRadius: BorderRadius.circular(12),
                           ),
+
                           child: Text(
                             "Esta es tu ruta",
                             textAlign: TextAlign.center,
@@ -297,17 +692,23 @@ class _RouteDetailsScreenState extends State<RouteDetailsScreen> {
                       : yaUnido
                       ? Container(
                           width: double.infinity,
+
                           padding: EdgeInsets.symmetric(vertical: 16),
+
                           decoration: BoxDecoration(
                             color: Colors.green.shade50,
                             borderRadius: BorderRadius.circular(12),
                             border: Border.all(color: Colors.green.shade200),
                           ),
+
                           child: Row(
                             mainAxisAlignment: MainAxisAlignment.center,
+
                             children: [
                               Icon(Icons.check_circle, color: Colors.green),
+
                               SizedBox(width: 10),
+
                               Text(
                                 "Ya estás en esta ruta",
                                 style: TextStyle(
@@ -323,8 +724,12 @@ class _RouteDetailsScreenState extends State<RouteDetailsScreen> {
                       ? Center(child: CircularProgressIndicator())
                       : SizedBox(
                           width: double.infinity,
+
                           child: ElevatedButton(
-                            onPressed: unirseARuta,
+                            onPressed: () {
+                              _showJoinModal();
+                            },
+
                             style: ElevatedButton.styleFrom(
                               backgroundColor: Color(0xFF5F2C82),
                               padding: EdgeInsets.symmetric(vertical: 16),
@@ -332,6 +737,7 @@ class _RouteDetailsScreenState extends State<RouteDetailsScreen> {
                                 borderRadius: BorderRadius.circular(12),
                               ),
                             ),
+
                             child: Text(
                               "Unirse a la ruta",
                               style: TextStyle(

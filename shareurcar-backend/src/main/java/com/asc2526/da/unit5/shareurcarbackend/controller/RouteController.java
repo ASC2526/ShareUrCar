@@ -63,9 +63,10 @@ public class RouteController {
     }
 
     @PostMapping("/{routeId}/join/{userId}")
-    public ResponseEntity<?> joinRoute(@PathVariable Integer routeId, @PathVariable Integer userId) {
+    public ResponseEntity<?> joinRoute(@PathVariable Integer routeId, @PathVariable Integer userId ,
+                                       @RequestParam(defaultValue = "false") boolean roundTrip) {
         try {
-            routeService.joinRoute(routeId, userId);
+            routeService.joinRoute(routeId, userId, roundTrip);
             return ResponseEntity.ok().body("Te has unido a la ruta con éxito");
         } catch (RuntimeException e) {
             return ResponseEntity.badRequest().body("error: " + e.getMessage());
@@ -112,5 +113,12 @@ public class RouteController {
         } catch (RuntimeException e) {
             return ResponseEntity.badRequest().body("Error: " + e.getMessage());
         }
+    }
+
+    @GetMapping("/{routeId}/price")
+    public ResponseEntity<?> calculatePrice(@PathVariable Integer routeId, @RequestParam Integer userId, @RequestParam boolean roundTrip) {
+        double price = routeService.calculatePrice(routeId, userId, roundTrip);
+        return ResponseEntity.ok(Map.of("price", price)
+        );
     }
 }

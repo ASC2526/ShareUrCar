@@ -49,4 +49,9 @@ public class PaymentController {
     public void delete(@PathVariable Integer id) {
         service.delete(id);
     }
+
+    @PutMapping("/{id}/failed")
+    public Payment failed(@PathVariable Integer id) {
+        return service.markAsFailed(id);
+    }
 }

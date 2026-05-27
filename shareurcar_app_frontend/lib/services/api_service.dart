@@ -144,13 +144,17 @@ class ApiService {
   }
 
   // Unirse a una ruta
-  static Future<void> joinRoute(int routeId, int userId) async {
-    final url = Uri.parse("$baseUrl/routes/$routeId/join/$userId");
+  static Future<void> joinRoute(int routeId, int userId, bool roundTrip) async {
+    final url = Uri.parse(
+      "$baseUrl/routes/$routeId/join/$userId?roundTrip=$roundTrip",
+    );
+
     final response = await http.post(url);
 
     if (response.statusCode != 200) {
       try {
         final errorBody = json.decode(response.body);
+
         throw Exception(errorBody['error'] ?? "Error desconocido al unirse");
       } catch (e) {
         throw Exception("Error al unirse a la ruta");
@@ -325,5 +329,40 @@ class ApiService {
     } else {
       throw Exception("Error cargando miembros");
     }
+  }
+
+  static Future<Map<String, dynamic>> updateBalance(
+    int userId,
+    double amount,
+  ) async {
+    final url = Uri.parse("$baseUrl/users/$userId/balance?amount=$amount");
+
+    final response = await http.patch(url);
+
+    if (response.statusCode == 200) {
+      return json.decode(response.body);
+    }
+    throw Exception("Error actualizando saldo");
+  }
+
+  static Future<double> calculateRoutePrice(
+    int routeId,
+    int userId,
+    bool roundTrip,
+  ) async {
+    final url = Uri.parse(
+      "$baseUrl/routes/$routeId/price"
+      "?userId=$userId"
+      "&roundTrip=$roundTrip",
+    );
+    final response = await http.get(url);
+
+    if (response.statusCode == 200) {
+      final data = json.decode(response.body);
+
+      return (data['price'] as num).toDouble();
+    }
+
+    throw Exception("Error calculando precio");
   }
 }

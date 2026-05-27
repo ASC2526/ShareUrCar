@@ -4,6 +4,7 @@ import 'package:shareurcar_app_frontend/screens/active_trip_screen.dart';
 import 'package:shareurcar_app_frontend/screens/create_route_screen.dart';
 import 'package:shareurcar_app_frontend/screens/login_screen.dart';
 import 'package:shareurcar_app_frontend/screens/search_route_screen.dart';
+import 'package:shareurcar_app_frontend/screens/wallet_screen.dart';
 import '../services/api_service.dart';
 
 class HomeScreen extends StatefulWidget {
@@ -18,18 +19,35 @@ class HomeScreen extends StatefulWidget {
 class _HomeScreenState extends State<HomeScreen> {
   List dynamicRoutes = [];
   bool isLoading = true;
+  late Map currentUser;
 
   @override
   void initState() {
     super.initState();
+    currentUser = widget.user;
+    _refreshUser();
     fetchMyRoutes();
+  }
+
+  Future<void> _refreshUser() async {
+    try {
+      final updatedUser = await ApiService.getUserById(currentUser['idUser']);
+
+      if (mounted) {
+        setState(() {
+          currentUser = updatedUser;
+        });
+      }
+    } catch (e) {
+      print("Error refrescando usuario: $e");
+    }
   }
 
   void fetchMyRoutes() async {
     setState(() => isLoading = true);
     try {
       final rutas = await ApiService.getMyRoutes(
-        widget.user['idUser'] ?? widget.user['id_user'],
+        currentUser['idUser'] ?? currentUser['id_user'],
       );
       setState(() {
         dynamicRoutes = rutas;
@@ -78,8 +96,8 @@ class _HomeScreenState extends State<HomeScreen> {
   @override
   Widget build(BuildContext context) {
     final hasTrips = dynamicRoutes.isNotEmpty;
-    final String? fotoUrl = widget.user['profile_photo'];
-    final String nombreUsuario = widget.user['firstname'] ?? 'Usuario';
+    final String? fotoUrl = currentUser['profile_photo'];
+    final String nombreUsuario = currentUser['firstname'] ?? 'Usuario';
 
     return Scaffold(
       backgroundColor: Colors.grey[50],
@@ -198,7 +216,91 @@ class _HomeScreenState extends State<HomeScreen> {
                     ),
                   ],
                 ),
+
                 SizedBox(height: 25),
+
+                //el saldo
+                GestureDetector(
+                  onTap: () async {
+                    await Navigator.push(
+                      context,
+
+                      MaterialPageRoute(
+                        builder: (_) => WalletScreen(user: currentUser),
+                      ),
+                    );
+                    await _refreshUser();
+                  },
+
+                  child: Container(
+                    width: double.infinity,
+
+                    padding: EdgeInsets.all(18),
+
+                    decoration: BoxDecoration(
+                      color: Colors.white.withOpacity(0.15),
+
+                      borderRadius: BorderRadius.circular(18),
+                    ),
+
+                    child: Row(
+                      children: [
+                        Container(
+                          padding: EdgeInsets.all(12),
+
+                          decoration: BoxDecoration(
+                            color: Colors.white24,
+                            borderRadius: BorderRadius.circular(14),
+                          ),
+
+                          child: Icon(
+                            Icons.account_balance_wallet_outlined,
+                            color: Colors.white,
+                          ),
+                        ),
+
+                        SizedBox(width: 15),
+
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+
+                            children: [
+                              Text(
+                                "Saldo disponible",
+                                style: TextStyle(
+                                  color: Colors.white70,
+                                  fontSize: 13,
+                                ),
+                              ),
+
+                              SizedBox(height: 4),
+
+                              Text(
+                                "${(((currentUser['balance'] ?? 0) - (currentUser['heldBalance'] ?? currentUser['held_balance'] ?? 0))).toStringAsFixed(2)} €",
+
+                                style: TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 24,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+
+                        Icon(
+                          Icons.arrow_forward_ios,
+                          color: Colors.white70,
+                          size: 16,
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+
+                SizedBox(height: 25),
+
                 Row(
                   children: [
                     Expanded(
@@ -208,9 +310,10 @@ class _HomeScreenState extends State<HomeScreen> {
                             context,
                             MaterialPageRoute(
                               builder: (_) =>
-                                  CreateRouteScreen(user: widget.user),
+                                  CreateRouteScreen(user: currentUser),
                             ),
                           );
+                          await _refreshUser();
                           fetchMyRoutes();
                         },
                         child: actionButton(
@@ -228,9 +331,10 @@ class _HomeScreenState extends State<HomeScreen> {
                             context,
                             MaterialPageRoute(
                               builder: (_) =>
-                                  SearchRouteScreen(user: widget.user),
+                                  SearchRouteScreen(user: currentUser),
                             ),
                           );
+                          await _refreshUser();
                           fetchMyRoutes();
                         },
                         child: actionButton(
@@ -245,7 +349,6 @@ class _HomeScreenState extends State<HomeScreen> {
               ],
             ),
           ),
-
           SizedBox(height: 20),
 
           Expanded(
@@ -418,9 +521,10 @@ class _HomeScreenState extends State<HomeScreen> {
               context,
               MaterialPageRoute(
                 builder: (_) =>
-                    ActiveTripScreen(ruta: rutaSeleccionada, user: widget.user),
+                    ActiveTripScreen(ruta: rutaSeleccionada, user: currentUser),
               ),
             );
+            await _refreshUser();
 
             if (actualizaHome == true) {
               fetchMyRoutes();

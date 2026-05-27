@@ -39,4 +39,7 @@ public class Payment {
 
     @Column(name = "created_at")
     private LocalDateTime createdAt;
+
+    @Column(name = "trip_type")
+    private String tripType;
 }

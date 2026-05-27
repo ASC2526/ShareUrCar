@@ -49,4 +49,10 @@ public class User {
 
     @Column(name = "created_at", insertable = false, updatable = false)
     private LocalDate createdAt;
+
+    @Column(name = "balance")
+    private Double balance = 0.0;
+
+    @Column(name = "held_balance")
+    private Double heldBalance = 0.0;
 }

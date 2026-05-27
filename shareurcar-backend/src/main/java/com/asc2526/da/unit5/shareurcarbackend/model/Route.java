@@ -69,6 +69,9 @@ public class Route {
     @Column(name = "driver_confirmed")
     private Boolean driverConfirmed = false;
 
+    @Column(name = "allow_round_trip")
+    private Boolean allowRoundTrip = false;
+
     public Boolean isDriverConfirmed() {
         return driverConfirmed;
     }

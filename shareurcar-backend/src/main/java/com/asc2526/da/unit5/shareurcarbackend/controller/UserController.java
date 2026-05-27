@@ -61,4 +61,9 @@ public class UserController {
     public List<Review> getUserReviews(@PathVariable Integer id) {
         return userService.getUserReviews(id);
     }
+
+    @PatchMapping("/{userId}/balance")
+    public User updateBalance(@PathVariable Integer userId, @RequestParam Double amount) {
+        return userService.updateBalance(userId, amount);
+    }
 }

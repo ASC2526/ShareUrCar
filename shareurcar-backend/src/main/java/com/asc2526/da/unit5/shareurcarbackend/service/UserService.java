@@ -35,13 +35,10 @@ public class UserService {
     }
 
     public User createUser(User user) {
-
         if (user == null) throw new IllegalArgumentException("User no puede ser null");
-
         if (userRepository.existsByEmail(user.getEmail())) {
             throw new AlreadyExistsException("Email ya registrado");
         }
-
         return userRepository.save(user);
     }
 
@@ -54,18 +51,16 @@ public class UserService {
         if (updates == null || updates.isEmpty()) {
             throw new IllegalArgumentException("No se enviaron datos para actualizar");
         }
-
-        User user = userRepository.findUserByIdUser(id)
-                .orElseThrow(() -> new UserNotFoundException(id));
-
+        User user = userRepository.findUserByIdUser(id).orElseThrow(() -> new UserNotFoundException(id));
         if (updates.containsKey("firstname")) {
             String fn = (String) updates.get("firstname");
             if (fn == null || fn.isEmpty())
                 throw new IllegalArgumentException("El nombre no puede estar vacío");
             user.setFirstname(fn);
         }
-
-        if (updates.containsKey("lastname")) user.setLastname((String) updates.get("lastname"));
+        if (updates.containsKey("lastname")) {
+            user.setLastname((String) updates.get("lastname"));
+        }
 
         if (updates.containsKey("email")) {
             String newEmail = (String) updates.get("email");
@@ -76,18 +71,35 @@ public class UserService {
             }
             user.setEmail(newEmail);
         }
-
         if (updates.containsKey("phone"))
             user.setPhone((String) updates.get("phone"));
         if (updates.containsKey("aboutMe"))
             user.setAboutMe((String) updates.get("aboutMe"));
         if (updates.containsKey("profile_photo"))
             user.setProfile_photo((String) updates.get("profile_photo"));
-
         return userRepository.save(user);
     }
 
     public List<Review> getUserReviews(Integer userId) {
         return reviewRepository.findByIdReviewed(userId);
+    }
+
+    @Transactional
+    public User updateBalance(Integer userId, Double amount) {
+
+        User user = userRepository.findUserByIdUser(userId).orElseThrow(() -> new RuntimeException("Usuario no encontrado"));
+
+        double balance = user.getBalance() != null ? user.getBalance() : 0.0;
+        double held = user.getHeldBalance() != null ? user.getHeldBalance() : 0.0;
+        double available = balance - held;
+
+        if(amount < 0) {
+            double retirada = Math.abs(amount);
+            if(retirada > available) {
+                throw new RuntimeException("No tienes saldo suficiente");
+            }
+        }
+        user.setBalance(balance + amount);
+        return userRepository.save(user);
     }
 }
