@@ -373,61 +373,33 @@ public class RouteService {
     private void settleRoutePayments(Route route, TravelGroup group) {
 
         List<Payment> payments = paymentRepository.findByGroup(group.getIdGroup());
-
         int totalPassengers = route.getPassengers().size();
-
         double totalDriverAmount = 0.0;
-
         double finalPrice = calculateTripPrice(route, totalPassengers);
-
         for(Payment payment : payments) {
 
             if("COMPLETED".equals(payment.getPaymentStatus())) {
                 continue;
             }
-
             User passenger = userRepository.findUserByIdUser(payment.getIdUser()).orElseThrow();
-
             double paid = payment.getAmount();
-
             double realPrice = finalPrice;
 
             if("ROUND_TRIP".equals(payment.getTripType())) {
                 realPrice *= 1.9;
             }
-
             double held = passenger.getHeldBalance() != null ? passenger.getHeldBalance() : 0.0;
-
             double balance = passenger.getBalance() != null ? passenger.getBalance() : 0.0;
+            passenger.setHeldBalance(Math.max(0, held - paid));
+            passenger.setBalance(Math.max(0, balance - realPrice));
 
-            // Liberar retenido completo
-            passenger.setHeldBalance(
-                    Math.max(0, held - paid)
-            );
-
-            // Cobrar SOLO precio real
-            passenger.setBalance(
-                    Math.max(0, balance - realPrice)
-            );
-
-            // Si pagó de más -> devolver diferencia
             if(paid > realPrice) {
-
-                double refund = paid - realPrice;
-
-                passenger.setBalance(
-                        passenger.getBalance() + refund
-                );
+                double refund = paid - realPrice;passenger.setBalance(passenger.getBalance() + refund);
             }
-
             payment.setAmount(realPrice);
-
             payment.setPaymentStatus("COMPLETED");
-
             paymentRepository.save(payment);
-
             userRepository.save(passenger);
-
             totalDriverAmount += realPrice;
         }
 
