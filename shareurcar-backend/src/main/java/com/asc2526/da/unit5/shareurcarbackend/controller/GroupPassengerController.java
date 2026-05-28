@@ -18,39 +18,34 @@ public class GroupPassengerController {
         this.service = service;
     }
 
-    // GET ALL
     @GetMapping
     public List<GroupPassenger> getAll() {
         return service.getAll();
     }
 
-    // POST → unirse
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
     public GroupPassenger joinGroup(@Valid @RequestBody GroupPassenger gp) {
         return service.joinGroup(gp);
     }
 
-    // PUT → cambiar estado
+
     @PutMapping("/{id}")
     public GroupPassenger updateState(@PathVariable Integer id, @RequestParam String state) {
         return service.updateState(id, state);
     }
 
-    // DELETE
     @DeleteMapping("/{id}")
     @ResponseStatus(HttpStatus.NO_CONTENT)
     public void delete(@PathVariable Integer id) {
         service.delete(id);
     }
 
-    // GET por grupo
     @GetMapping("/group/{groupId}")
     public List<GroupPassenger> getByGroup(@PathVariable Integer groupId) {
         return service.getByGroup(groupId);
     }
 
-    // GET por usuario
     @GetMapping("/user/{userId}")
     public List<GroupPassenger> getByUser(@PathVariable Integer userId) {
         return service.getByUser(userId);
