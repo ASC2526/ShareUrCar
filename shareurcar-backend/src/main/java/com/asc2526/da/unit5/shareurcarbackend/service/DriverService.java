@@ -71,7 +71,6 @@ public class DriverService {
                 driver.setMaxSeats(Integer.parseInt((String) seats));
             }
         }
-
         driverRepository.save(driver);
     }
 }

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart';
+import 'package:shareurcar_app_frontend/screens/payments_screen.dart';
 import '../services/api_service.dart';
 
 class RouteDetailsScreen extends StatefulWidget {
@@ -16,6 +17,18 @@ class RouteDetailsScreen extends StatefulWidget {
 class _RouteDetailsScreenState extends State<RouteDetailsScreen> {
   bool isLoading = false;
   bool roundTrip = false;
+
+  double oneWayPrice = 0;
+  double roundTripPrice = 0;
+
+  bool pricesLoaded = false;
+
+  @override
+  void initState() {
+    super.initState();
+
+    cargarPrecios();
+  }
 
   void unirseARuta() async {
     setState(() => isLoading = true);
@@ -62,10 +75,60 @@ class _RouteDetailsScreenState extends State<RouteDetailsScreen> {
     } catch (e) {
       if (!mounted) return;
 
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(e.toString().replaceAll("Exception: ", "")),
-          backgroundColor: Colors.red,
+      showDialog(
+        context: context,
+
+        builder: (_) => AlertDialog(
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(20),
+          ),
+
+          title: Row(
+            children: [
+              Icon(Icons.account_balance_wallet_outlined, color: Colors.red),
+
+              SizedBox(width: 10),
+
+              Text("Saldo insuficiente"),
+            ],
+          ),
+
+          content: Text(
+            "No puedes unirte a esta ruta porque tu saldo disponible es insuficiente.",
+            style: TextStyle(fontSize: 15),
+          ),
+
+          actions: [
+            TextButton(
+              onPressed: () {
+                Navigator.pop(context);
+              },
+
+              child: Text("Cancelar"),
+            ),
+
+            ElevatedButton(
+              onPressed: () {
+                Navigator.pop(context);
+
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) => PaymentsScreen(user: widget.user),
+                  ),
+                );
+              },
+
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Color(0xFF5F2C82),
+              ),
+
+              child: Text(
+                "Gestionar saldo",
+                style: TextStyle(color: Colors.white),
+              ),
+            ),
+          ],
         ),
       );
     } finally {
@@ -81,14 +144,44 @@ class _RouteDetailsScreenState extends State<RouteDetailsScreen> {
   String _formatearHora(String hora) =>
       hora.length >= 5 ? hora.substring(0, 5) : hora;
 
+  Future<void> cargarPrecios() async {
+    try {
+      final routeId =
+          widget.ruta['idRoute'] ??
+          widget.ruta['id_route'] ??
+          widget.ruta['id'];
+
+      final userId =
+          widget.user['idUser'] ?? widget.user['id_user'] ?? widget.user['id'];
+
+      final ida = await ApiService.calculateRoutePrice(routeId, userId, false);
+
+      final idaVuelta = await ApiService.calculateRoutePrice(
+        routeId,
+        userId,
+        true,
+      );
+
+      if (mounted) {
+        setState(() {
+          oneWayPrice = ida;
+
+          roundTripPrice = idaVuelta;
+
+          pricesLoaded = true;
+        });
+      }
+    } catch (e) {
+      print(e);
+    }
+  }
+
   void _showJoinModal() {
     bool localRoundTrip = false;
 
     bool allowRoundTrip =
         widget.ruta['allowRoundTrip'] == true ||
         widget.ruta['allow_round_trip'] == true;
-
-    double precio = 0;
 
     showModalBottomSheet(
       context: context,
@@ -98,36 +191,6 @@ class _RouteDetailsScreenState extends State<RouteDetailsScreen> {
       builder: (_) {
         return StatefulBuilder(
           builder: (context, setModalState) {
-            Future<void> actualizarPrecio() async {
-              try {
-                final routeId =
-                    widget.ruta['idRoute'] ??
-                    widget.ruta['id_route'] ??
-                    widget.ruta['id'];
-
-                final userId =
-                    widget.user['idUser'] ??
-                    widget.user['id_user'] ??
-                    widget.user['id'];
-
-                final result = await ApiService.calculateRoutePrice(
-                  routeId,
-                  userId,
-                  localRoundTrip,
-                );
-
-                setModalState(() {
-                  precio = result;
-                });
-              } catch (e) {
-                print(e);
-              }
-            }
-
-            WidgetsBinding.instance.addPostFrameCallback((_) {
-              actualizarPrecio();
-            });
-
             return Container(
               padding: EdgeInsets.all(25),
 
@@ -206,12 +269,14 @@ class _RouteDetailsScreenState extends State<RouteDetailsScreen> {
 
                         title: Text("Solo ida"),
 
-                        subtitle: Text("Reserva únicamente el trayecto de ida"),
+                        subtitle: Text(
+                          "${oneWayPrice.toStringAsFixed(2)} € · Reserva únicamente el trayecto de ida",
+                        ),
 
-                        onChanged: (value) async {
-                          localRoundTrip = value!;
-
-                          await actualizarPrecio();
+                        onChanged: (value) {
+                          setModalState(() {
+                            localRoundTrip = value!;
+                          });
                         },
                       ),
 
@@ -224,12 +289,14 @@ class _RouteDetailsScreenState extends State<RouteDetailsScreen> {
 
                         title: Text("Ida y vuelta"),
 
-                        subtitle: Text("Incluye trayecto de regreso"),
+                        subtitle: Text(
+                          "${(oneWayPrice * 1.9).toStringAsFixed(2)} € · Incluye trayecto de regreso",
+                        ),
 
-                        onChanged: (value) async {
-                          localRoundTrip = value!;
-
-                          await actualizarPrecio();
+                        onChanged: (value) {
+                          setModalState(() {
+                            localRoundTrip = value!;
+                          });
                         },
                       ),
                     ],
@@ -259,7 +326,7 @@ class _RouteDetailsScreenState extends State<RouteDetailsScreen> {
                           SizedBox(height: 10),
 
                           Text(
-                            "${precio.toStringAsFixed(2)} €",
+                            "${(localRoundTrip ? oneWayPrice * 1.9 : oneWayPrice).toStringAsFixed(2)} €",
                             style: TextStyle(
                               fontSize: 34,
                               fontWeight: FontWeight.bold,
@@ -333,6 +400,7 @@ class _RouteDetailsScreenState extends State<RouteDetailsScreen> {
         widget.user['idUser'] ?? widget.user['id_user'] ?? widget.user['id'];
     final driverId = widget.ruta['idDriver'] ?? widget.ruta['id_driver'];
 
+    bool rutaFinalizada = widget.ruta['status'] == 'COMPLETED';
     bool esMiRuta = driverId == currentUserId;
     bool yaUnido = false;
 
@@ -608,7 +676,9 @@ class _RouteDetailsScreenState extends State<RouteDetailsScreen> {
                             ),
 
                             Text(
-                              "Calculado al reservar",
+                              pricesLoaded
+                                  ? "${oneWayPrice.toStringAsFixed(2)} €"
+                                  : "Calculando...",
                               style: TextStyle(
                                 fontSize: 24,
                                 fontWeight: FontWeight.bold,
@@ -668,8 +738,28 @@ class _RouteDetailsScreenState extends State<RouteDetailsScreen> {
                     ),
                   ),
                   SizedBox(height: 40),
+                  rutaFinalizada
+                      ? Container(
+                          width: double.infinity,
 
-                  esMiRuta
+                          padding: EdgeInsets.symmetric(vertical: 16),
+
+                          decoration: BoxDecoration(
+                            color: Colors.blueGrey.shade100,
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+
+                          child: Text(
+                            "Viaje finalizado",
+                            textAlign: TextAlign.center,
+                            style: TextStyle(
+                              color: Colors.blueGrey.shade700,
+                              fontSize: 16,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        )
+                      : esMiRuta
                       ? Container(
                           width: double.infinity,
 
