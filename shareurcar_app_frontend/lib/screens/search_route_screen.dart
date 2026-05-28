@@ -599,17 +599,17 @@ class _SearchRouteScreenState extends State<SearchRouteScreen> {
           Expanded(
             child: FlutterMap(
               options: MapOptions(
-                initialCenter: LatLng(38.3452, -0.4810), // centrado en Alicante
+                initialCenter: LatLng(38.3452, -0.4810), // centrado en alicante
                 initialZoom: 13.0,
-                // para que no se pueda scrollear por todo el mundo
                 cameraConstraint: CameraConstraint.contain(
+                  // para que no se pueda scrollear por todo el mundo
                   bounds: LatLngBounds(LatLng(37.5, -1.5), LatLng(39.0, 0.5)),
                 ),
               ),
               children: [
                 TileLayer(
                   urlTemplate:
-                      'https://api.mapbox.com/styles/v1/mapbox/streets-v12/tiles/256/%7Bz%7D/%7Bx%7D/%7By%7D@2x?access_token={accessToken}',
+                      'https://api.mapbox.com/styles/v1/mapbox/streets-v12/tiles/256/{z}/{x}/{y}@2x?access_token={accessToken}',
                   additionalOptions: {'accessToken': ApiService.mapboxToken},
                 ),
               ],

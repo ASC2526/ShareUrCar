@@ -365,4 +365,20 @@ class ApiService {
 
     throw Exception("Error calculando precio");
   }
+
+  static Future<void> createReview(
+    int targetUserId,
+    Map<String, dynamic> reviewData,
+  ) async {
+    final url = Uri.parse("$baseUrl/users/$targetUserId/reviews");
+    final response = await http.post(
+      url,
+      headers: {"Content-Type": "application/json"},
+      body: jsonEncode(reviewData),
+    );
+
+    if (response.statusCode != 200 && response.statusCode != 201) {
+      throw Exception("Error al guardar la reseña");
+    }
+  }
 }

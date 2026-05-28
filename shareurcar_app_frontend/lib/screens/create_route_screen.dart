@@ -371,8 +371,9 @@ class _CreateRouteScreenState extends State<CreateRouteScreen> {
                             final sug = await ApiService.getAddressSuggestions(
                               val,
                             );
-                            if (mounted)
+                            if (mounted) {
                               setState(() => originSuggestions = sug);
+                            }
                           },
                         );
                       },
@@ -409,8 +410,9 @@ class _CreateRouteScreenState extends State<CreateRouteScreen> {
                             final sug = await ApiService.getAddressSuggestions(
                               val,
                             );
-                            if (mounted)
+                            if (mounted) {
                               setState(() => destinationSuggestions = sug);
+                            }
                           },
                         );
                       },
@@ -743,8 +745,9 @@ class _CreateRouteScreenState extends State<CreateRouteScreen> {
                               Icon(Icons.add_location_alt, size: 18),
                             ),
                             onChanged: (val) {
-                              if (_debounce?.isActive ?? false)
+                              if (_debounce?.isActive ?? false) {
                                 _debounce!.cancel();
+                              }
                               _debounce = Timer(
                                 Duration(milliseconds: 600),
                                 () async {
@@ -752,8 +755,9 @@ class _CreateRouteScreenState extends State<CreateRouteScreen> {
                                       await ApiService.getAddressSuggestions(
                                         val,
                                       );
-                                  if (mounted)
+                                  if (mounted) {
                                     setState(() => pickupSuggestions = sug);
+                                  }
                                 },
                               );
                             },

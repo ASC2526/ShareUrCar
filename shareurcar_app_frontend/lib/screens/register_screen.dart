@@ -139,16 +139,18 @@ class _RegisterScreenState extends State<RegisterScreen> {
                         ),
                       ),
                       onChanged: (val) {
-                        if (_centerDebounce?.isActive ?? false)
+                        if (_centerDebounce?.isActive ?? false) {
                           _centerDebounce!.cancel();
+                        }
                         _centerDebounce = Timer(
                           Duration(milliseconds: 600),
                           () async {
                             final sug = await ApiService.getCenterSuggestions(
                               val,
                             );
-                            if (mounted)
+                            if (mounted) {
                               setState(() => centerSuggestions = sug);
+                            }
                           },
                         );
                       },
