@@ -30,8 +30,31 @@ public class UserController {
     }
 
     @GetMapping("/{id}")
-    public User getUserById(@PathVariable Integer id) {
-        return userService.getUserById(id);
+    public ResponseEntity<Map<String, Object>> getUserById(@PathVariable Integer id) {
+        User user = userService.getUserById(id);
+
+        Map<String, Object> result = new java.util.HashMap<>();
+        result.put("idUser", user.getIdUser());
+        result.put("firstname", user.getFirstname());
+        result.put("lastname", user.getLastname());
+        result.put("email", user.getEmail());
+        result.put("phone", user.getPhone());
+        result.put("aboutMe", user.getAboutMe());
+        result.put("center", user.getCenter());
+        result.put("profile_photo", user.getProfile_photo());
+        result.put("rating", user.getRating());
+        result.put("balance", user.getBalance());
+        result.put("heldBalance", user.getHeldBalance());
+        result.put("createdAt", user.getCreatedAt());
+
+        driverService.getDriverByUserId(id).ifPresent(driver -> {
+            result.put("carPlate", driver.getCarPlate());
+            result.put("carModel", driver.getCarModel());
+            result.put("carColor", driver.getCarColor());
+            result.put("maxSeats", driver.getMaxSeats());
+        });
+
+        return ResponseEntity.ok(result);
     }
 
     @PostMapping

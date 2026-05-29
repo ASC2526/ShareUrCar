@@ -74,8 +74,20 @@ public class MessageService {
     }
 
     public Integer getGroupIdByRoute(Integer routeId) {
-        TravelGroup group = travelGroupRepository.findByIdRoute(routeId)
-                        .orElseThrow(() -> new RuntimeException("Grupo no encontrado"));
+        Optional<TravelGroup> direct = travelGroupRepository.findByIdRoute(routeId);
+        if (direct.isPresent()) {
+            return direct.get().getIdGroup();
+        }
+
+        Route route = routeRepository.findById(routeId)
+                .orElseThrow(() -> new RuntimeException("Ruta no encontrada"));
+        String seriesId = route.getSeriesId();
+        if (seriesId == null) {
+            throw new RuntimeException("Grupo no encontrado para esta ruta");
+        }
+
+        TravelGroup group = travelGroupRepository.findBySeriesId(seriesId)
+                .orElseThrow(() -> new RuntimeException("Grupo no encontrado para la serie"));
         return group.getIdGroup();
     }
 

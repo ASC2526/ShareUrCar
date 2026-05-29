@@ -17,4 +17,6 @@ public interface TravelGroupRepository extends JpaRepository<TravelGroup, Intege
     List<TravelGroup> findByRouteId(@Param("routeId") Integer routeId);
 
     Optional<TravelGroup> findByIdRoute(Integer idRoute);
+
+    Optional<TravelGroup> findBySeriesId(String seriesId);
 }

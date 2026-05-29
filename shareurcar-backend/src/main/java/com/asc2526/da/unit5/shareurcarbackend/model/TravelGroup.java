@@ -32,11 +32,12 @@ public class TravelGroup {
     @NotBlank
     private String status;
 
-    @NotNull
     @Column(name = "travel_date")
     private LocalDate travelDate;
 
-    @NotNull
     @Column(name = "travel_time")
     private LocalTime travelTime;
+
+    @Column(name = "series_id")
+    private String seriesId;
 }

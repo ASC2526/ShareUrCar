@@ -1,5 +1,6 @@
 package com.asc2526.da.unit5.shareurcarbackend.service;
 
+import com.asc2526.da.unit5.shareurcarbackend.dto.RouteCreateDTO;
 import com.asc2526.da.unit5.shareurcarbackend.exception.*;
 import com.asc2526.da.unit5.shareurcarbackend.model.*;
 import com.asc2526.da.unit5.shareurcarbackend.repository.*;
@@ -7,10 +8,12 @@ import jakarta.transaction.Transactional;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 
+import java.time.DayOfWeek;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
-
 @Service
 public class RouteService {
 
@@ -39,30 +42,127 @@ public class RouteService {
                 .orElseThrow(() -> new RouteNotFoundException(id));
     }
 
-    public Route createRoute(Route route) {
+    private void createSingleGroupForSeries(Route referenceRoute, String seriesId) {
+        TravelGroup group = new TravelGroup();
+        group.setIdRoute(referenceRoute.getIdRoute());
+        group.setIdDriver(referenceRoute.getIdDriver());
+        group.setStatus("ACTIVE");
+        group.setSeriesId(seriesId);                              // <-- antes no se guardaba
+        group.setTravelDate(referenceRoute.getTravel_date());     // <-- fecha de la primera ruta
+        group.setTravelTime(referenceRoute.getDeparture_time());  // <-- hora de salida
+        travelGroupRepository.save(group);
+    }
 
-        if (route.getIdDriver() == null) {
+    @Transactional
+    public List<Route> createRoutes(RouteCreateDTO dto) {
+
+        if (dto.getIdDriver() == null) {
             throw new IllegalArgumentException("Driver requerido");
         }
 
-        if (!driverRepository.existsByIdDriver(route.getIdDriver())) {
-            throw new UserIsNotDriverException("Este usuario no está registrado como conductor (falta el coche)");
+        if (!driverRepository.existsByIdDriver(dto.getIdDriver())) {
+            throw new UserIsNotDriverException(
+                    "Este usuario no está registrado como conductor (falta el coche)"
+            );
         }
 
-        if (route.getAvailable_seats() <= 0) {
+        if (dto.getAvailable_seats() == null || dto.getAvailable_seats() <= 0) {
             throw new IllegalArgumentException("La cantidad de sitios es inválida");
         }
-        route.setDriverConfirmed(false);
-        Route savedRoute = routeRepository.save(route);
 
-        TravelGroup group = new TravelGroup();
-        group.setIdRoute(savedRoute.getIdRoute());
-        group.setIdDriver(savedRoute.getIdDriver());
-        group.setStatus("ACTIVE");
-        group.setTravelDate(java.time.LocalDate.now());
-        group.setTravelTime(savedRoute.getDeparture_time());
-        travelGroupRepository.save(group);
-        return savedRoute;
+        Route base = new Route();
+        base.setIdDriver(dto.getIdDriver());
+        base.setOrigin(dto.getOrigin());
+        base.setDestination(dto.getDestination());
+        base.setOriginLat(dto.getOriginLat());
+        base.setOriginLng(dto.getOriginLng());
+        base.setDestinationLat(dto.getDestinationLat());
+        base.setDestinationLng(dto.getDestinationLng());
+        base.setDeparture_time(dto.getDeparture_time());
+        base.setReturn_time(dto.getReturn_time());
+        base.setFrequency(dto.getFrequency());
+        base.setDays_of_week(dto.getDays_of_week());
+        base.setTravel_date(dto.getTravel_date());
+        base.setStart_date(dto.getStart_date());
+        base.setEnd_date(dto.getEnd_date());
+        base.setAvailable_seats(dto.getAvailable_seats());
+        base.setAllowRoundTrip(dto.getAllowRoundTrip() != null ? dto.getAllowRoundTrip() : false);
+        base.setPrefNoTalk(dto.getPref_no_talk());
+        base.setPrefLuggage(dto.getPref_luggage());
+        base.setPrefMusic(dto.getPref_music());
+        base.setPrefSmoke(dto.getPref_smoke());
+
+        String seriesId = java.util.UUID.randomUUID().toString();
+        List<Route> savedRoutes = new ArrayList<>();
+
+        if ("semanal".equalsIgnoreCase(dto.getFrequency())) {
+            List<DayOfWeek> validDays = parseDaysOfWeek(dto.getDays_of_week());
+            LocalDate current = dto.getStart_date();
+            LocalDate end = dto.getEnd_date();
+
+            while (!current.isAfter(end)) {
+                if (validDays.contains(current.getDayOfWeek())) {
+                    Route routeInstance = cloneRouteDetails(base);
+                    routeInstance.setTravel_date(current);
+                    routeInstance.setSeriesId(seriesId);
+                    routeInstance.setDriverConfirmed(false);
+                    savedRoutes.add(routeRepository.save(routeInstance));
+                }
+                current = current.plusDays(1);
+            }
+        } else {
+            base.setSeriesId(seriesId);
+            savedRoutes.add(routeRepository.save(base));
+        }
+
+        if (!savedRoutes.isEmpty()) {
+            createSingleGroupForSeries(savedRoutes.get(0), seriesId);
+        }
+
+        return savedRoutes;
+    }
+
+    private Route cloneRouteDetails(Route source) {
+        Route r = new Route();
+        r.setIdDriver(source.getIdDriver());
+        r.setOrigin(source.getOrigin());
+        r.setDestination(source.getDestination());
+        r.setOriginLat(source.getOriginLat());
+        r.setOriginLng(source.getOriginLng());
+        r.setDestinationLat(source.getDestinationLat());
+        r.setDestinationLng(source.getDestinationLng());
+        r.setDeparture_time(source.getDeparture_time());
+        r.setArrival_time(source.getArrival_time());
+        r.setFrequency(source.getFrequency());
+        r.setDays_of_week(source.getDays_of_week());
+        r.setStart_date(source.getStart_date());
+        r.setEnd_date(source.getEnd_date());
+        r.setAvailable_seats(source.getAvailable_seats());
+        r.setAllowRoundTrip(source.getAllowRoundTrip());
+        r.setReturn_time(source.getReturn_time());
+        r.setPrefNoTalk(source.getPrefNoTalk());
+        r.setPrefLuggage(source.getPrefLuggage());
+        r.setPrefMusic(source.getPrefMusic());
+        r.setPrefSmoke(source.getPrefSmoke());
+        return r;
+    }
+
+    private List<DayOfWeek> parseDaysOfWeek(String daysStr) {
+        List<DayOfWeek> days = new ArrayList<>();
+        if (daysStr == null || daysStr.isEmpty()) return days;
+        String[] split = daysStr.split(",");
+        for (String d : split) {
+            switch (d.trim().toUpperCase()) {
+                case "L": days.add(DayOfWeek.MONDAY); break;
+                case "M": days.add(DayOfWeek.TUESDAY); break;
+                case "X": days.add(DayOfWeek.WEDNESDAY); break;
+                case "J": days.add(DayOfWeek.THURSDAY); break;
+                case "V": days.add(DayOfWeek.FRIDAY); break;
+                case "S": days.add(DayOfWeek.SATURDAY); break;
+                case "D": days.add(DayOfWeek.SUNDAY); break;
+            }
+        }
+        return days;
     }
 
     public Route updateRoute(Integer id, Route newRoute) {
@@ -98,9 +198,8 @@ public class RouteService {
             map.put("originLng",route.getOriginLng());
             map.put("destinationLat",route.getDestinationLat());
             map.put("destinationLng",route.getDestinationLng());
-            map.put("departure_time",route.getDeparture_time());
-            map.put("arrival_time",route.getArrival_time());
-            map.put("days_of_week",route.getDays_of_week());
+            map.put("departure_time", route.getDeparture_time() != null ? route.getDeparture_time().toString() : null);
+            map.put("arrival_time", route.getArrival_time() != null ? route.getArrival_time().toString() : null);            map.put("days_of_week",route.getDays_of_week());
             map.put("frequency",route.getFrequency());
             map.put("available_seats",route.getAvailable_seats());
             map.put("status",route.getStatus());
@@ -109,6 +208,14 @@ public class RouteService {
             map.put("driverName", driver.getFirstname() + " " + driver.getLastname());
             map.put("maxSeats", driverCar != null ? driverCar.getMaxSeats() : 4);
             map.put("allowRoundTrip", route.getAllowRoundTrip());
+            map.put("travel_date", route.getTravel_date() != null ? route.getTravel_date().toString() : null);
+            map.put("start_date", route.getStart_date() != null ? route.getStart_date().toString() : null);
+            map.put("end_date", route.getEnd_date() != null ? route.getEnd_date().toString() : null);
+            map.put("return_time", route.getReturn_time() != null ? route.getReturn_time().toString() : null);
+            map.put("pref_no_talk", route.getPrefNoTalk());
+            map.put("pref_luggage", route.getPrefLuggage());
+            map.put("pref_music", route.getPrefMusic());
+            map.put("pref_smoke", route.getPrefSmoke());
             result.add(map);
         }
         return result;
@@ -116,7 +223,7 @@ public class RouteService {
     @Transactional
     public void deleteRoute(Integer id) {
 
-        Route route = routeRepository.findById(id).orElseThrow();
+        routeRepository.findById(id).orElseThrow();
         TravelGroup group = travelGroupRepository.findByIdRoute(id).orElse(null);
         if(group != null) {
 
@@ -213,52 +320,58 @@ public class RouteService {
     @Transactional
     public void joinRoute(Integer routeId, Integer userId, boolean roundTrip) {
 
-        if(routeId == null || userId == null) {
+        if (routeId == null || userId == null) {
             throw new IllegalArgumentException("La ruta o el usuario no pueden ser nulos");
         }
 
-        Route route = routeRepository.findById(routeId).orElseThrow(() -> new RuntimeException("La ruta no existe"));
+        Route route = routeRepository.findById(routeId)
+                .orElseThrow(() -> new RuntimeException("La ruta no existe"));
+        User user = userRepository.findUserByIdUser(userId)
+                .orElseThrow(() -> new RuntimeException("El usuario no existe"));
 
-        User user = userRepository.findUserByIdUser(userId).orElseThrow(() -> new RuntimeException("El usuario no existe"));
-
-        if(route.getAvailable_seats() <= 0) {
+        if (route.getAvailable_seats() <= 0) {
             throw new NoAvailableSeatsException("Lo siento, ya no quedan plazas libres");
         }
-
-        if(route.getIdDriver().equals(userId)) {
+        if (route.getIdDriver().equals(userId)) {
             throw new YourOwnRouteException("No puedes unirte a tu propia ruta como pasajero");
         }
-
-        if(route.getPassengers().contains(user)) {
+        if (route.getPassengers().contains(user)) {
             throw new AlreadyExistsException("Ya estás unido a esta ruta");
         }
-
-        if(roundTrip && !Boolean.TRUE.equals(route.getAllowRoundTrip())) {
+        if (roundTrip && !Boolean.TRUE.equals(route.getAllowRoundTrip())) {
             throw new RuntimeException("Esta ruta no permite ida y vuelta");
         }
 
         int pasajeros = route.getPassengers().size() + 1;
         double amount = calculateTripPrice(route, pasajeros);
-        if(roundTrip) {
+        if (roundTrip) {
             amount *= 1.9;
         }
+
         double balance = user.getBalance() != null ? user.getBalance() : 0.0;
         double held = user.getHeldBalance() != null ? user.getHeldBalance() : 0.0;
         double disponible = balance - held;
-
-        if(disponible < amount) {
+        if (disponible < amount) {
             throw new RuntimeException("Saldo insuficiente");
         }
-        TravelGroup group = travelGroupRepository.findByIdRoute(routeId).orElseThrow();
-        GroupPassenger passenger = new GroupPassenger();
-        passenger.setIdGroup(group.getIdGroup());
-        passenger.setIdUser(userId);
-        passenger.setState("ACTIVE");
-        passenger.setConfirmed(false);
-        groupPassengerRepository.save(passenger);
 
-        route.getPassengers().add(user);
-        route.setAvailable_seats(route.getAvailable_seats() - 1);
+        String seriesId = route.getSeriesId();
+        TravelGroup group = travelGroupRepository.findBySeriesId(seriesId)
+                .orElseGet(() -> travelGroupRepository.findByIdRoute(routeId)
+                        .orElseThrow(() -> new RuntimeException("Grupo no encontrado")));
+
+        boolean yaEnGrupo = groupPassengerRepository
+                .findByIdGroupAndIdUser(group.getIdGroup(), userId)
+                .isPresent();
+
+        if (!yaEnGrupo) {
+            GroupPassenger passenger = new GroupPassenger();
+            passenger.setIdGroup(group.getIdGroup());
+            passenger.setIdUser(userId);
+            passenger.setState("ACTIVE");
+            passenger.setConfirmed(false);
+            groupPassengerRepository.save(passenger);
+        }
 
         Payment payment = new Payment();
         payment.setIdGroup(group.getIdGroup());
@@ -270,8 +383,16 @@ public class RouteService {
         paymentRepository.save(payment);
 
         user.setHeldBalance(held + amount);
-        routeRepository.save(route);
         userRepository.save(user);
+
+        List<Route> todasLasRutas = routeRepository.findAllBySeriesId(seriesId);
+        for (Route r : todasLasRutas) {
+            if (r.getAvailable_seats() > 0) {
+                r.getPassengers().add(user);
+                r.setAvailable_seats(r.getAvailable_seats() - 1);
+                routeRepository.save(r);
+            }
+        }
     }
 
     @Transactional
@@ -427,7 +548,7 @@ public class RouteService {
         return true;
     }
 
-    public double calculatePrice(Integer routeId, Integer userId, boolean roundTrip) {
+    public double calculatePrice(Integer routeId) {
         Route route = routeRepository.findById(routeId).orElseThrow(() -> new RuntimeException("Ruta no encontrada"));
         int passengers = route.getPassengers().size() + 1;
         return calculateTripPrice(route, passengers);

@@ -6,6 +6,7 @@ import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import lombok.*;
 
+import java.time.LocalDate;
 import java.time.LocalTime;
 import java.util.ArrayList;
 import java.util.List;
@@ -72,7 +73,34 @@ public class Route {
     @Column(name = "allow_round_trip")
     private Boolean allowRoundTrip = false;
 
-    public Boolean isDriverConfirmed() {
-        return driverConfirmed;
-    }
+    // preferencias
+    @Column(name = "pref_no_talk")
+    private Boolean prefNoTalk;
+
+    @Column(name = "pref_luggage")
+    private Boolean prefLuggage;
+
+    @Column(name = "pref_music")
+    private Boolean prefMusic;
+
+    @Column(name = "pref_smoke")
+    private Boolean prefSmoke;
+
+    @Column(name = "start_date")
+    private LocalDate start_date;
+
+    @Column(name = "end_date")
+    private LocalDate end_date;
+
+    @Column(name = "return_time")
+    private LocalTime return_time;
+
+    @Column(name = "travel_date")
+    private LocalDate travel_date;
+
+    @Column(name = "series_id")
+    private String seriesId;
+
+
+
 }

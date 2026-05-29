@@ -1,5 +1,6 @@
 package com.asc2526.da.unit5.shareurcarbackend.controller;
 
+import com.asc2526.da.unit5.shareurcarbackend.dto.RouteCreateDTO;
 import com.asc2526.da.unit5.shareurcarbackend.exception.RouteNotFoundException;
 import com.asc2526.da.unit5.shareurcarbackend.model.Route;
 import com.asc2526.da.unit5.shareurcarbackend.service.RouteService;
@@ -37,10 +38,9 @@ public class RouteController {
 
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
-    public Route createRoute(@Valid @RequestBody Route route) {
-        return routeService.createRoute(route);
+    public List<Route> createRoute(@Valid @RequestBody RouteCreateDTO dto) {
+        return routeService.createRoutes(dto);
     }
-
     @PutMapping("/{id}")
     public Route updateRoute(@PathVariable Integer id, @Valid @RequestBody Route route) {
         return routeService.updateRoute(id, route);
@@ -116,8 +116,8 @@ public class RouteController {
     }
 
     @GetMapping("/{routeId}/price")
-    public ResponseEntity<?> calculatePrice(@PathVariable Integer routeId, @RequestParam Integer userId, @RequestParam boolean roundTrip) {
-        double price = routeService.calculatePrice(routeId, userId, roundTrip);
+    public ResponseEntity<?> calculatePrice(@PathVariable Integer routeId) {
+        double price = routeService.calculatePrice(routeId);
         return ResponseEntity.ok(Map.of("price", price)
         );
     }

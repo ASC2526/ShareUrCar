@@ -51,4 +51,6 @@ public interface RouteRepository extends JpaRepository<Route, Integer> {
 
     @Query("SELECT r FROM Route r WHERE r.status = 'PENDING' AND r.arrival_time < :now")
     List<Route> findPendingRoutesWhereArrivalTimePassed(@Param("now") LocalDateTime now);
+
+    List<Route> findAllBySeriesId(String seriesId);
 }
