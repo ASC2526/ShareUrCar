@@ -393,9 +393,6 @@ public class RouteService {
             passenger.setHeldBalance(Math.max(0, held - paid));
             passenger.setBalance(Math.max(0, balance - realPrice));
 
-            if(paid > realPrice) {
-                double refund = paid - realPrice;passenger.setBalance(passenger.getBalance() + refund);
-            }
             payment.setAmount(realPrice);
             payment.setPaymentStatus("COMPLETED");
             paymentRepository.save(payment);
@@ -404,11 +401,8 @@ public class RouteService {
         }
 
         User driver = userRepository.findUserByIdUser(route.getIdDriver()).orElseThrow();
-
         double driverBalance = driver.getBalance() != null ? driver.getBalance() : 0.0;
-
         driver.setBalance(driverBalance + totalDriverAmount);
-
         userRepository.save(driver);
     }
 
