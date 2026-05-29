@@ -16,8 +16,8 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
   List<dynamic> messages = [];
   bool isLoading = true;
   int? groupId;
-
   final TextEditingController messageController = TextEditingController();
+  final ScrollController _scrollController = ScrollController();
 
   @override
   void initState() {
@@ -25,323 +25,353 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
     loadGroupId();
   }
 
+  @override
+  void dispose() {
+    messageController.dispose();
+    _scrollController.dispose();
+    super.dispose();
+  }
+
   Future<void> loadGroupId() async {
     try {
-      final routeId = widget.ruta['idRoute'];
+      final routeId =
+          widget.ruta['idRoute'] ??
+          widget.ruta['id_route'] ??
+          widget.ruta['id'];
 
-      final result = await ApiService.getGroupIdByRoute(routeId);
+      if (routeId == null) {
+        throw Exception("No se encontró el ID de la ruta");
+      }
 
-      setState(() {
-        groupId = result;
-      });
-
-      fetchMessages();
-    } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text("Error cargando grupo"),
-          backgroundColor: Colors.red,
-        ),
+      final result = await ApiService.getGroupIdByRoute(
+        int.parse(routeId.toString()),
       );
+
+      if (mounted) {
+        setState(() => groupId = result);
+      }
+      await fetchMessages();
+    } catch (e) {
+      if (mounted) {
+        setState(() => isLoading = false);
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text("Error cargando el chat del grupo"),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
     }
   }
 
-  void fetchMessages() async {
+  Future<void> fetchMessages() async {
     if (groupId == null) return;
-
     try {
       final data = await ApiService.getGroupMessages(groupId!);
-
-      setState(() {
-        messages = data;
-      });
+      if (mounted) {
+        setState(() {
+          messages = data;
+          isLoading = false;
+        });
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (_scrollController.hasClients) {
+            _scrollController.animateTo(
+              _scrollController.position.maxScrollExtent,
+              duration: const Duration(milliseconds: 300),
+              curve: Curves.easeOut,
+            );
+          }
+        });
+      }
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text("Error cargando mensajes"),
-          backgroundColor: Colors.red,
-        ),
-      );
-    } finally {
-      setState(() => isLoading = false);
+      if (mounted) {
+        setState(() => isLoading = false);
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text("Error cargando mensajes"),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
     }
   }
 
   void sendMessage() async {
-    if (messageController.text.trim().isEmpty) return;
-    if (groupId == null) return;
+    final text = messageController.text.trim();
+    if (text.isEmpty || groupId == null) return;
+
+    final userId = widget.user['idUser'] ?? widget.user['id_user'];
+
+    messageController.clear();
 
     try {
-      final userId = widget.user['idUser'] ?? widget.user['id_user'];
-
       await ApiService.sendMessage({
         "idGroup": groupId,
         "idUser": userId,
-        "text": messageController.text.trim(),
+        "text": text,
       });
-
-      messageController.clear();
-
-      fetchMessages();
+      await fetchMessages();
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text("Error enviando mensaje"),
-          backgroundColor: Colors.red,
-        ),
-      );
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text("Error enviando mensaje"),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
     }
+  }
+
+  void _abrirIntegrantes() {
+    if (groupId == null) {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text("Cargando integrantes...")));
+      return;
+    }
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) =>
+            GroupMembersScreen(groupId: groupId!, user: widget.user),
+      ),
+    );
   }
 
   @override
   Widget build(BuildContext context) {
     final destino = widget.ruta['destination'] ?? "Chat del viaje";
-
     final currentUserId = widget.user['idUser'] ?? widget.user['id_user'];
 
     return Scaffold(
-      backgroundColor: Colors.grey.shade50,
+      backgroundColor: const Color(0xFFF0EBF8),
 
       appBar: AppBar(
-        backgroundColor: Colors.white,
-
+        flexibleSpace: Container(
+          decoration: const BoxDecoration(
+            gradient: LinearGradient(
+              colors: [Color(0xFF5F2C82), Color(0xFF49A09D)],
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+            ),
+          ),
+        ),
+        backgroundColor: Colors.transparent,
         elevation: 0,
-
         centerTitle: true,
-
-        leading: BackButton(color: Colors.black87),
-
+        leading: BackButton(color: Colors.white),
         title: GestureDetector(
-          onTap: () {
-            if (groupId == null) {
-              ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(content: Text("Cargando integrantes...")),
-              );
-
-              return;
-            }
-
-            Navigator.push(
-              context,
-
-              MaterialPageRoute(
-                builder: (_) =>
-                    GroupMembersScreen(groupId: groupId!, user: widget.user),
-              ),
-            );
-          },
-
+          onTap: _abrirIntegrantes,
           child: Column(
             children: [
               Text(
                 destino,
-                style: TextStyle(
-                  color: Colors.black87,
+                style: const TextStyle(
+                  color: Colors.white,
                   fontWeight: FontWeight.bold,
-                  fontSize: 18,
+                  fontSize: 16,
                 ),
+                overflow: TextOverflow.ellipsis,
               ),
-
-              Text(
-                "Chat del grupo",
-                style: TextStyle(color: Colors.grey.shade600, fontSize: 12),
+              const Text(
+                "Toca para ver integrantes",
+                style: TextStyle(color: Colors.white70, fontSize: 11),
               ),
             ],
           ),
         ),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.group, color: Colors.white),
+            onPressed: _abrirIntegrantes,
+          ),
+        ],
       ),
 
       body: Column(
         children: [
           Expanded(
             child: isLoading
-                ? Center(
+                ? const Center(
                     child: CircularProgressIndicator(color: Color(0xFF5F2C82)),
                   )
                 : messages.isEmpty
                 ? Center(
-                    child: Text(
-                      "Todavía no hay mensajes",
-                      style: TextStyle(color: Colors.grey.shade600),
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(
+                          Icons.chat_bubble_outline,
+                          size: 60,
+                          color: Colors.grey.shade300,
+                        ),
+                        const SizedBox(height: 12),
+                        Text(
+                          "Todavía no hay mensajes.\n¡Sé el primero en escribir!",
+                          textAlign: TextAlign.center,
+                          style: TextStyle(
+                            color: Colors.grey.shade500,
+                            fontSize: 15,
+                          ),
+                        ),
+                      ],
                     ),
                   )
                 : ListView.builder(
-                    padding: EdgeInsets.all(20),
-
+                    controller: _scrollController,
+                    padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
                     itemCount: messages.length,
-
                     itemBuilder: (context, index) {
                       final msg = messages[index];
-
                       final bool isMine = msg['idUser'] == currentUserId;
-
-                      return Align(
-                        alignment: isMine
-                            ? Alignment.centerRight
-                            : Alignment.centerLeft,
-
-                        child: Container(
-                          margin: EdgeInsets.only(bottom: 12),
-
-                          padding: EdgeInsets.symmetric(
-                            horizontal: 16,
-                            vertical: 12,
-                          ),
-
-                          constraints: BoxConstraints(
-                            maxWidth: MediaQuery.of(context).size.width * 0.75,
-                          ),
-
-                          decoration: BoxDecoration(
-                            color: isMine ? Color(0xFF5F2C82) : Colors.white,
-
-                            borderRadius: BorderRadius.circular(18),
-
-                            boxShadow: [
-                              BoxShadow(
-                                color: Colors.grey.shade200,
-                                blurRadius: 8,
-                                offset: Offset(0, 4),
-                              ),
-                            ],
-                          ),
-
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-
-                            children: [
-                              if (!isMine)
-                                Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-
-                                  children: [
-                                    Row(
-                                      children: [
-                                        Text(
-                                          msg['fullName'] ?? '',
-
-                                          style: TextStyle(
-                                            fontWeight: FontWeight.bold,
-                                            color: Color(0xFF5F2C82),
-                                            fontSize: 12,
-                                          ),
-                                        ),
-
-                                        SizedBox(width: 8),
-
-                                        Container(
-                                          padding: EdgeInsets.symmetric(
-                                            horizontal: 8,
-                                            vertical: 3,
-                                          ),
-
-                                          decoration: BoxDecoration(
-                                            color: msg['isDriver']
-                                                ? Colors.green
-                                                : Colors.red,
-
-                                            borderRadius: BorderRadius.circular(
-                                              10,
-                                            ),
-                                          ),
-
-                                          child: Text(
-                                            msg['isDriver']
-                                                ? "Conductor"
-                                                : "Pasajero",
-
-                                            style: TextStyle(
-                                              color: Colors.white,
-                                              fontSize: 10,
-                                              fontWeight: FontWeight.bold,
-                                            ),
-                                          ),
-                                        ),
-                                      ],
-                                    ),
-
-                                    SizedBox(height: 5),
-                                  ],
-                                ),
-
-                              Text(
-                                msg['text'] ?? '',
-
-                                style: TextStyle(
-                                  color: isMine ? Colors.white : Colors.black87,
-
-                                  fontSize: 15,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      );
+                      return _buildMessageBubble(msg, isMine);
                     },
                   ),
           ),
 
-          Container(
-            padding: EdgeInsets.fromLTRB(16, 12, 16, 20),
+          _buildInputBar(),
+        ],
+      ),
+    );
+  }
 
-            decoration: BoxDecoration(
-              color: Colors.white,
-
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.grey.shade200,
-                  blurRadius: 10,
-                  offset: Offset(0, -2),
-                ),
-              ],
+  Widget _buildMessageBubble(Map msg, bool isMine) {
+    return Align(
+      alignment: isMine ? Alignment.centerRight : Alignment.centerLeft,
+      child: Container(
+        margin: EdgeInsets.only(
+          bottom: 10,
+          left: isMine ? 50 : 0,
+          right: isMine ? 0 : 50,
+        ),
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+        decoration: BoxDecoration(
+          gradient: isMine
+              ? const LinearGradient(
+                  colors: [Color(0xFF5F2C82), Color(0xFF7B3FA0)],
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                )
+              : null,
+          color: isMine ? null : Colors.white,
+          borderRadius: BorderRadius.only(
+            topLeft: const Radius.circular(18),
+            topRight: const Radius.circular(18),
+            bottomLeft: Radius.circular(isMine ? 18 : 4),
+            bottomRight: Radius.circular(isMine ? 4 : 18),
+          ),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.06),
+              blurRadius: 6,
+              offset: const Offset(0, 3),
             ),
-
-            child: Row(
-              children: [
-                Expanded(
-                  child: TextField(
-                    controller: messageController,
-
-                    decoration: InputDecoration(
-                      hintText: "Escribe un mensaje...",
-
-                      filled: true,
-
-                      fillColor: Colors.grey.shade100,
-
-                      contentPadding: EdgeInsets.symmetric(
-                        horizontal: 20,
-                        vertical: 14,
-                      ),
-
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(30),
-                        borderSide: BorderSide.none,
-                      ),
+          ],
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            if (!isMine) ...[
+              Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    msg['fullName'] ?? '',
+                    style: const TextStyle(
+                      fontWeight: FontWeight.bold,
+                      color: Color(0xFF5F2C82),
+                      fontSize: 12,
                     ),
                   ),
-                ),
-
-                SizedBox(width: 10),
-
-                GestureDetector(
-                  onTap: sendMessage,
-
-                  child: Container(
-                    padding: EdgeInsets.all(14),
-
+                  const SizedBox(width: 8),
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 8,
+                      vertical: 3,
+                    ),
                     decoration: BoxDecoration(
-                      gradient: LinearGradient(
-                        colors: [Color(0xFF5F2C82), Color(0xFF49A09D)],
-                      ),
-
-                      shape: BoxShape.circle,
+                      color: (msg['isDriver'] == true)
+                          ? Colors.green
+                          : Colors.deepOrange,
+                      borderRadius: BorderRadius.circular(10),
                     ),
-
-                    child: Icon(Icons.send, color: Colors.white),
+                    child: Text(
+                      (msg['isDriver'] == true) ? "Conductor" : "Pasajero",
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 10,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
                   ),
+                ],
+              ),
+              const SizedBox(height: 5),
+            ],
+            Text(
+              msg['text'] ?? '',
+              style: TextStyle(
+                color: isMine ? Colors.white : Colors.black87,
+                fontSize: 15,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildInputBar() {
+    return Container(
+      padding: const EdgeInsets.fromLTRB(16, 10, 16, 24),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(),
+            blurRadius: 10,
+            offset: const Offset(0, -2),
+          ),
+        ],
+      ),
+      child: Row(
+        children: [
+          Expanded(
+            child: TextField(
+              controller: messageController,
+              textInputAction: TextInputAction.send,
+              onSubmitted: (_) => sendMessage(),
+              decoration: InputDecoration(
+                hintText: "Escribe un mensaje...",
+                hintStyle: TextStyle(color: Colors.grey.shade400),
+                filled: true,
+                fillColor: const Color(0xFFF0EBF8),
+                contentPadding: const EdgeInsets.symmetric(
+                  horizontal: 20,
+                  vertical: 12,
                 ),
-              ],
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(30),
+                  borderSide: BorderSide.none,
+                ),
+              ),
+            ),
+          ),
+          const SizedBox(width: 10),
+          GestureDetector(
+            onTap: sendMessage,
+            child: Container(
+              padding: const EdgeInsets.all(13),
+              decoration: const BoxDecoration(
+                gradient: LinearGradient(
+                  colors: [Color(0xFF5F2C82), Color(0xFF49A09D)],
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                ),
+                shape: BoxShape.circle,
+              ),
+              child: const Icon(Icons.send, color: Colors.white, size: 22),
             ),
           ),
         ],

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:shareurcar_app_frontend/screens/active_trip_screen.dart';
+import 'package:shareurcar_app_frontend/screens/all_routes_screen.dart';
 import 'package:shareurcar_app_frontend/screens/create_route_screen.dart';
 import 'package:shareurcar_app_frontend/screens/login_screen.dart';
 import 'package:shareurcar_app_frontend/screens/search_route_screen.dart';
@@ -9,7 +10,6 @@ import '../services/api_service.dart';
 
 class HomeScreen extends StatefulWidget {
   final Map user;
-
   const HomeScreen({super.key, required this.user});
 
   @override
@@ -32,14 +32,9 @@ class _HomeScreenState extends State<HomeScreen> {
   Future<void> _refreshUser() async {
     try {
       final updatedUser = await ApiService.getUserById(currentUser['idUser']);
-
-      if (mounted) {
-        setState(() {
-          currentUser = updatedUser;
-        });
-      }
+      if (mounted) setState(() => currentUser = updatedUser);
     } catch (e) {
-      print("Error refrescando usuario: $e");
+      debugPrint("Error refrescando usuario: $e");
     }
   }
 
@@ -49,64 +44,86 @@ class _HomeScreenState extends State<HomeScreen> {
       final rutas = await ApiService.getMyRoutes(
         currentUser['idUser'] ?? currentUser['id_user'],
       );
-      setState(() {
-        dynamicRoutes = rutas;
-      });
+      setState(() => dynamicRoutes = rutas);
     } catch (e) {
-      print("Error: $e");
+      debugPrint("Error fetchMyRoutes: $e");
     } finally {
       setState(() => isLoading = false);
     }
   }
 
+  /// Devuelve las rutas de los próximos 7 días desde la más cercana
+  List _filtrarRutasSemana(List todas) {
+    if (todas.isEmpty) return [];
+
+    final hoy = DateTime.now();
+    final inicioDia = DateTime(hoy.year, hoy.month, hoy.day);
+
+    final futuras = todas.where((r) {
+      if (r['travel_date'] == null) return false;
+      final d = DateTime.tryParse(r['travel_date'].toString());
+      if (d == null) return false;
+      return !d.isBefore(inicioDia);
+    }).toList();
+
+    if (futuras.isEmpty) return [];
+
+    futuras.sort((a, b) {
+      final dA =
+          DateTime.tryParse(a['travel_date'].toString()) ?? DateTime.now();
+      final dB =
+          DateTime.tryParse(b['travel_date'].toString()) ?? DateTime.now();
+      return dA.compareTo(dB);
+    });
+
+    final primeraFecha =
+        DateTime.tryParse(futuras.first['travel_date'].toString()) ?? inicioDia;
+    final finSemana = primeraFecha.add(const Duration(days: 6));
+
+    return futuras.where((r) {
+      final d =
+          DateTime.tryParse(r['travel_date'].toString()) ?? DateTime.now();
+      return !d.isAfter(finSemana);
+    }).toList();
+  }
+
   String _obtenerFechaRelativa(String? fechaIso) {
-    if (fechaIso == null) return "Hoy"; // Fallback
-
+    if (fechaIso == null) return "Hoy";
     try {
-      DateTime fechaRuta = DateTime.parse(fechaIso);
-      DateTime hoy = DateTime.now();
-      DateTime hoyMedianoche = DateTime(hoy.year, hoy.month, hoy.day);
-      DateTime fechaRutaMedianoche = DateTime(
-        fechaRuta.year,
-        fechaRuta.month,
-        fechaRuta.day,
-      );
+      final fechaRuta = DateTime.parse(fechaIso);
+      final hoy = DateTime.now();
+      final hoyMN = DateTime(hoy.year, hoy.month, hoy.day);
+      final rutaMN = DateTime(fechaRuta.year, fechaRuta.month, fechaRuta.day);
+      final diff = rutaMN.difference(hoyMN).inDays;
 
-      int diferenciaDias = fechaRutaMedianoche.difference(hoyMedianoche).inDays;
-
-      if (diferenciaDias == 0) {
-        return "Hoy";
-      } else if (diferenciaDias == 1) {
-        return "Mañana";
-      } else if (diferenciaDias > 1 && diferenciaDias <= 7) {
-        return "En $diferenciaDias días";
-      } else {
-        return DateFormat('dd MMM').format(fechaRuta);
-      }
-    } catch (e) {
+      if (diff == 0) return "Hoy";
+      if (diff == 1) return "Mañana";
+      if (diff > 1 && diff <= 7) return "En $diff días";
+      return DateFormat('dd MMM').format(fechaRuta);
+    } catch (_) {
       return "Próximamente";
     }
   }
 
-  // Extraer iniciales si no hay foto
-  String _obtenerIniciales(String nombre) {
-    return nombre.isNotEmpty ? nombre[0].toUpperCase() : "U";
-  }
+  String _obtenerIniciales(String nombre) =>
+      nombre.isNotEmpty ? nombre[0].toUpperCase() : "U";
 
+  // ─────────────────────────────────────────────────────────
   @override
   Widget build(BuildContext context) {
-    final hasTrips = dynamicRoutes.isNotEmpty;
     final String? fotoUrl = currentUser['profile_photo'];
     final String nombreUsuario = currentUser['firstname'] ?? 'Usuario';
+    final rutasSemana = _filtrarRutasSemana(dynamicRoutes);
 
     return Scaffold(
       backgroundColor: Colors.grey[50],
       body: Column(
         children: [
+          // ── CABECERA ──────────────────────────────────────
           Container(
             width: double.infinity,
-            padding: EdgeInsets.fromLTRB(20, 50, 20, 20),
-            decoration: BoxDecoration(
+            padding: const EdgeInsets.fromLTRB(20, 50, 20, 20),
+            decoration: const BoxDecoration(
               gradient: LinearGradient(
                 colors: [Color(0xFF5F2C82), Color(0xFF49A09D)],
                 begin: Alignment.topCenter,
@@ -117,19 +134,20 @@ class _HomeScreenState extends State<HomeScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
+                // Fila usuario + avatar
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
                     Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text(
+                        const Text(
                           "Bienvenido de nuevo,",
                           style: TextStyle(color: Colors.white70),
                         ),
                         Text(
                           nombreUsuario,
-                          style: TextStyle(
+                          style: const TextStyle(
                             color: Colors.white,
                             fontSize: 24,
                             fontWeight: FontWeight.bold,
@@ -137,18 +155,16 @@ class _HomeScreenState extends State<HomeScreen> {
                         ),
                       ],
                     ),
-                    // notificaciones con foto de perfil
                     Row(
                       children: [
                         IconButton(
-                          icon: Icon(
+                          icon: const Icon(
                             Icons.notifications_none,
                             color: Colors.white,
                           ),
                           onPressed: () {
-                            // abrir panel de notificaciones
                             ScaffoldMessenger.of(context).showSnackBar(
-                              SnackBar(
+                              const SnackBar(
                                 content: Text(
                                   "No tienes notificaciones nuevas",
                                 ),
@@ -157,7 +173,7 @@ class _HomeScreenState extends State<HomeScreen> {
                           },
                         ),
                         PopupMenuButton<String>(
-                          offset: Offset(0, 45),
+                          offset: const Offset(0, 45),
                           color: Colors.white,
                           shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(14),
@@ -167,17 +183,17 @@ class _HomeScreenState extends State<HomeScreen> {
                               Navigator.pushAndRemoveUntil(
                                 context,
                                 MaterialPageRoute(
-                                  builder: (_) => LoginScreen(),
+                                  builder: (_) => const LoginScreen(),
                                 ),
                                 (route) => false,
                               );
                             }
                           },
-                          itemBuilder: (context) => [
+                          itemBuilder: (_) => [
                             PopupMenuItem(
                               value: "logout",
                               child: Row(
-                                children: [
+                                children: const [
                                   Icon(
                                     Icons.logout,
                                     color: Colors.red,
@@ -204,7 +220,7 @@ class _HomeScreenState extends State<HomeScreen> {
                             child: fotoUrl == null
                                 ? Text(
                                     _obtenerIniciales(nombreUsuario),
-                                    style: TextStyle(
+                                    style: const TextStyle(
                                       color: Colors.white,
                                       fontWeight: FontWeight.bold,
                                     ),
@@ -217,69 +233,55 @@ class _HomeScreenState extends State<HomeScreen> {
                   ],
                 ),
 
-                SizedBox(height: 25),
+                const SizedBox(height: 25),
 
-                //el saldo
+                // ── TARJETA SALDO ─────────────────────────────
                 GestureDetector(
                   onTap: () async {
                     await Navigator.push(
                       context,
-
                       MaterialPageRoute(
                         builder: (_) => WalletScreen(user: currentUser),
                       ),
                     );
                     await _refreshUser();
                   },
-
                   child: Container(
                     width: double.infinity,
-
-                    padding: EdgeInsets.all(18),
-
+                    padding: const EdgeInsets.all(18),
                     decoration: BoxDecoration(
                       color: Colors.white.withOpacity(0.15),
-
                       borderRadius: BorderRadius.circular(18),
                     ),
-
                     child: Row(
                       children: [
                         Container(
-                          padding: EdgeInsets.all(12),
-
+                          padding: const EdgeInsets.all(12),
                           decoration: BoxDecoration(
                             color: Colors.white24,
                             borderRadius: BorderRadius.circular(14),
                           ),
-
-                          child: Icon(
+                          child: const Icon(
                             Icons.account_balance_wallet_outlined,
                             color: Colors.white,
                           ),
                         ),
-
-                        SizedBox(width: 15),
-
+                        const SizedBox(width: 15),
                         Expanded(
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
-
                             children: [
-                              Text(
+                              const Text(
                                 "Saldo disponible",
                                 style: TextStyle(
                                   color: Colors.white70,
                                   fontSize: 13,
                                 ),
                               ),
-
-                              SizedBox(height: 4),
-
+                              const SizedBox(height: 4),
                               Text(
                                 "${(((currentUser['balance'] ?? 0) - (currentUser['heldBalance'] ?? currentUser['held_balance'] ?? 0))).toStringAsFixed(2)} €",
-
-                                style: TextStyle(
+                                style: const TextStyle(
                                   color: Colors.white,
                                   fontSize: 24,
                                   fontWeight: FontWeight.bold,
@@ -288,8 +290,7 @@ class _HomeScreenState extends State<HomeScreen> {
                             ],
                           ),
                         ),
-
-                        Icon(
+                        const Icon(
                           Icons.arrow_forward_ios,
                           color: Colors.white70,
                           size: 16,
@@ -299,8 +300,9 @@ class _HomeScreenState extends State<HomeScreen> {
                   ),
                 ),
 
-                SizedBox(height: 25),
+                const SizedBox(height: 25),
 
+                // ── BOTONES CREAR / BUSCAR ────────────────────
                 Row(
                   children: [
                     Expanded(
@@ -316,14 +318,14 @@ class _HomeScreenState extends State<HomeScreen> {
                           await _refreshUser();
                           fetchMyRoutes();
                         },
-                        child: actionButton(
+                        child: _actionButton(
                           "Crear ruta",
                           Icons.add,
-                          Color(0xFF42A5F5),
+                          const Color(0xFF42A5F5),
                         ),
                       ),
                     ),
-                    SizedBox(width: 15),
+                    const SizedBox(width: 15),
                     Expanded(
                       child: GestureDetector(
                         onTap: () async {
@@ -337,10 +339,10 @@ class _HomeScreenState extends State<HomeScreen> {
                           await _refreshUser();
                           fetchMyRoutes();
                         },
-                        child: actionButton(
+                        child: _actionButton(
                           "Buscar rutas",
                           Icons.search,
-                          Color(0xFF7E57C2),
+                          const Color(0xFF7E57C2),
                         ),
                       ),
                     ),
@@ -349,100 +351,94 @@ class _HomeScreenState extends State<HomeScreen> {
               ],
             ),
           ),
-          SizedBox(height: 20),
 
+          const SizedBox(height: 20),
+
+          // ── LISTA DE VIAJES ───────────────────────────────
           Expanded(
             child: Padding(
-              padding: EdgeInsets.symmetric(horizontal: 20),
+              padding: const EdgeInsets.symmetric(horizontal: 20),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
+                  // Cabecera sección
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      Text(
-                        "Viajes Activos",
+                      const Text(
+                        "Viajes de esta semana",
                         style: TextStyle(
                           fontSize: 18,
                           fontWeight: FontWeight.bold,
                           color: Colors.black87,
                         ),
                       ),
-                      Text(
-                        "Ver todos",
-                        style: TextStyle(
-                          color: Color(0xFF5F2C82),
-                          fontWeight: FontWeight.w600,
+                      GestureDetector(
+                        onTap: () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (_) => AllRoutesScreen(
+                                rutas: dynamicRoutes,
+                                user: currentUser,
+                              ),
+                            ),
+                          ).then((_) => fetchMyRoutes());
+                        },
+                        child: const Text(
+                          "Ver todos",
+                          style: TextStyle(
+                            color: Color(0xFF5F2C82),
+                            fontWeight: FontWeight.w600,
+                          ),
                         ),
                       ),
                     ],
                   ),
-                  SizedBox(height: 15),
+                  const SizedBox(height: 15),
 
-                  if (isLoading)
-                    Expanded(
-                      child: Center(
-                        child: CircularProgressIndicator(
-                          color: Color(0xFF5F2C82),
-                        ),
-                      ),
-                    )
-                  else if (hasTrips)
-                    Expanded(
-                      child: ListView.builder(
-                        padding: EdgeInsets.only(top: 0),
-                        itemCount: dynamicRoutes.length,
-                        itemBuilder: (context, index) {
-                          final route = dynamicRoutes[index];
-
-                          final destino =
-                              route['destination'] ?? 'Destino Desconocido';
-                          final hora = route['departure_time'] != null
-                              ? route['departure_time'].substring(0, 5)
-                              : '00:00';
-                          final fechaRelativa = _obtenerFechaRelativa(
-                            route['travel_date'],
-                          );
-
-                          final driverName = route['driverName'] ?? "Antonio";
-                          final plazasTotales = route['maxSeats'] ?? 4;
-                          final plazasOcupadas =
-                              plazasTotales - (route['available_seats'] ?? 4);
-
-                          return _buildTripCard(
-                            destino,
-                            hora,
-                            fechaRelativa,
-                            driverName,
-                            plazasOcupadas,
-                            plazasTotales,
-                          );
-                        },
-                      ),
-                    )
-                  else
-                    Expanded(
-                      child: Center(
-                        child: Column(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            Icon(
-                              Icons.directions_car_filled_outlined,
-                              size: 60,
-                              color: Colors.grey.shade300,
+                  // Contenido
+                  Expanded(
+                    child: isLoading
+                        ? const Center(
+                            child: CircularProgressIndicator(
+                              color: Color(0xFF5F2C82),
                             ),
-                            SizedBox(height: 10),
-                            Text(
-                              "No tienes viajes activos",
-                              style: TextStyle(
-                                color: Colors.grey.shade600,
-                                fontSize: 16,
-                              ),
+                          )
+                        : rutasSemana.isEmpty
+                        ? Center(
+                            child: Column(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                Icon(
+                                  Icons.directions_car_filled_outlined,
+                                  size: 60,
+                                  color: Colors.grey.shade300,
+                                ),
+                                const SizedBox(height: 10),
+                                Text(
+                                  dynamicRoutes.isEmpty
+                                      ? "No tienes viajes activos"
+                                      : "No tienes viajes esta semana",
+                                  style: TextStyle(
+                                    color: Colors.grey.shade600,
+                                    fontSize: 16,
+                                  ),
+                                ),
+                              ],
                             ),
-                          ],
-                        ),
-                      ),
-                    ),
+                          )
+                        : ListView.builder(
+                            padding: EdgeInsets.zero,
+                            itemCount: rutasSemana.length,
+                            itemBuilder: (context, index) {
+                              final ruta = rutasSemana[index];
+                              return _buildTripCard(
+                                Map<String, dynamic>.from(ruta),
+                              );
+                            },
+                          ),
+                  ),
                 ],
               ),
             ),
@@ -452,28 +448,28 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  // botones arriba
-  Widget actionButton(String text, IconData icon, Color color) {
+  // ── WIDGETS AUXILIARES ──────────────────────────────────
+  Widget _actionButton(String text, IconData icon, Color color) {
     return Container(
-      padding: EdgeInsets.symmetric(vertical: 18),
+      padding: const EdgeInsets.symmetric(vertical: 18),
       decoration: BoxDecoration(
         color: color,
         borderRadius: BorderRadius.circular(15),
         boxShadow: [
           BoxShadow(
-            color: color.withValues(alpha: 0.3),
+            color: color.withOpacity(0.3),
             blurRadius: 10,
-            offset: Offset(0, 5),
+            offset: const Offset(0, 5),
           ),
         ],
       ),
       child: Column(
         children: [
           Icon(icon, color: Colors.white, size: 28),
-          SizedBox(height: 8),
+          const SizedBox(height: 8),
           Text(
             text,
-            style: TextStyle(
+            style: const TextStyle(
               color: Colors.white,
               fontWeight: FontWeight.bold,
               fontSize: 15,
@@ -484,16 +480,32 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  Widget _buildTripCard(
-    String destino,
-    String hora,
-    String fechaRelativa,
-    String driverName,
-    int plazasOcupadas,
-    int plazasTotales,
-  ) {
+  Widget _buildTripCard(Map<String, dynamic> ruta) {
+    final destino = ruta['destination'] ?? 'Destino';
+
+    final hora = (ruta['departure_time'] ?? '00:00:00').toString().length >= 5
+        ? ruta['departure_time'].toString().substring(0, 5)
+        : '00:00';
+
+    final horaVuelta =
+        ruta['return_time'] != null &&
+            ruta['return_time'].toString().length >= 5
+        ? ruta['return_time'].toString().substring(0, 5)
+        : null;
+
+    final fechaRelativa = _obtenerFechaRelativa(
+      ruta['travel_date']?.toString(),
+    );
+    final driverName = ruta['driverName'] ?? "Conductor";
+
+    // Plazas: pasajeros ocupados vs total del coche
+    final List pasajeros = (ruta['passengers'] as List?) ?? [];
+    final int plazasOcupadas = pasajeros.length;
+    final int plazasDisponibles = (ruta['available_seats'] ?? 0) as int;
+    final int plazasTotales = plazasOcupadas + plazasDisponibles;
+
     return Container(
-      margin: EdgeInsets.only(bottom: 15),
+      margin: const EdgeInsets.only(bottom: 15),
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(16),
@@ -503,7 +515,7 @@ class _HomeScreenState extends State<HomeScreen> {
             color: Colors.grey.shade100,
             blurRadius: 10,
             spreadRadius: 1,
-            offset: Offset(0, 4),
+            offset: const Offset(0, 4),
           ),
         ],
       ),
@@ -512,34 +524,25 @@ class _HomeScreenState extends State<HomeScreen> {
         child: InkWell(
           borderRadius: BorderRadius.circular(16),
           onTap: () async {
-            // buscamos la ruta completa usando el destino y la hora como referencia
-            final rutaSeleccionada = dynamicRoutes.firstWhere(
-              (r) => r['destination'] == destino,
-            );
-
-            final actualizaHome = await Navigator.push(
+            final actualiza = await Navigator.push(
               context,
               MaterialPageRoute(
-                builder: (_) =>
-                    ActiveTripScreen(ruta: rutaSeleccionada, user: currentUser),
+                builder: (_) => ActiveTripScreen(ruta: ruta, user: currentUser),
               ),
             );
             await _refreshUser();
-
-            if (actualizaHome == true) {
-              fetchMyRoutes();
-            }
+            if (actualiza == true) fetchMyRoutes();
           },
           child: Padding(
-            padding: const EdgeInsets.all(16.0),
+            padding: const EdgeInsets.all(16),
             child: Column(
               children: [
-                // destino, fecha y hora
+                // Destino + hora + badge fecha
                 Row(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Container(
-                      padding: EdgeInsets.all(8),
+                      padding: const EdgeInsets.all(8),
                       decoration: BoxDecoration(
                         color: Colors.blue.shade50,
                         shape: BoxShape.circle,
@@ -550,14 +553,14 @@ class _HomeScreenState extends State<HomeScreen> {
                         size: 20,
                       ),
                     ),
-                    SizedBox(width: 12),
+                    const SizedBox(width: 12),
                     Expanded(
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Text(
                             destino,
-                            style: TextStyle(
+                            style: const TextStyle(
                               fontSize: 16,
                               fontWeight: FontWeight.bold,
                               color: Colors.black87,
@@ -565,7 +568,7 @@ class _HomeScreenState extends State<HomeScreen> {
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
                           ),
-                          SizedBox(height: 4),
+                          const SizedBox(height: 4),
                           Row(
                             children: [
                               Icon(
@@ -573,12 +576,18 @@ class _HomeScreenState extends State<HomeScreen> {
                                 size: 14,
                                 color: Colors.grey.shade600,
                               ),
-                              SizedBox(width: 4),
-                              Text(
-                                "$fechaRelativa · $hora",
-                                style: TextStyle(
-                                  color: Colors.grey.shade600,
-                                  fontSize: 14,
+                              const SizedBox(width: 4),
+                              Expanded(
+                                child: Text(
+                                  horaVuelta != null
+                                      ? "Salida: $hora · Vuelta: $horaVuelta"
+                                      : "Salida: $hora",
+                                  style: TextStyle(
+                                    color: Colors.grey.shade600,
+                                    fontSize: 14,
+                                  ),
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
                                 ),
                               ),
                             ],
@@ -587,17 +596,17 @@ class _HomeScreenState extends State<HomeScreen> {
                       ),
                     ),
                     Container(
-                      padding: EdgeInsets.symmetric(
+                      padding: const EdgeInsets.symmetric(
                         horizontal: 12,
                         vertical: 6,
                       ),
                       decoration: BoxDecoration(
-                        color: Color(0xFFE8EAF6),
+                        color: const Color(0xFFE8EAF6),
                         borderRadius: BorderRadius.circular(20),
-                      ), // Fondo azul clarito
+                      ),
                       child: Text(
                         fechaRelativa,
-                        style: TextStyle(
+                        style: const TextStyle(
                           color: Color(0xFF5C6BC0),
                           fontWeight: FontWeight.bold,
                           fontSize: 12,
@@ -607,11 +616,11 @@ class _HomeScreenState extends State<HomeScreen> {
                   ],
                 ),
 
-                SizedBox(height: 15),
+                const SizedBox(height: 15),
                 Divider(color: Colors.grey.shade200, height: 1),
-                SizedBox(height: 15),
+                const SizedBox(height: 15),
 
-                // conductor y plazas
+                // Conductor + plazas
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
@@ -622,7 +631,7 @@ class _HomeScreenState extends State<HomeScreen> {
                           size: 18,
                           color: Colors.grey.shade600,
                         ),
-                        SizedBox(width: 8),
+                        const SizedBox(width: 8),
                         Text(
                           driverName,
                           style: TextStyle(
@@ -635,15 +644,15 @@ class _HomeScreenState extends State<HomeScreen> {
                     ),
                     Row(
                       children: [
-                        Icon(
+                        const Icon(
                           Icons.group_outlined,
                           size: 18,
                           color: Color(0xFF5F2C82),
                         ),
-                        SizedBox(width: 4),
+                        const SizedBox(width: 4),
                         Text(
                           "$plazasOcupadas/$plazasTotales",
-                          style: TextStyle(
+                          style: const TextStyle(
                             color: Color(0xFF5F2C82),
                             fontWeight: FontWeight.bold,
                             fontSize: 14,

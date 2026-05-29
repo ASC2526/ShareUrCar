@@ -100,8 +100,23 @@ class _SearchRouteScreenState extends State<SearchRouteScreen> {
         selectedDestLng!,
       );
 
+      final Map<String, dynamic> rutasAgrupadas = {};
+      for (var r in resultados) {
+        String driver = (r['idDriver'] ?? r['id_driver']).toString();
+        String origin = r['origin'].toString();
+        String dest = r['destination'].toString();
+        String start =
+            r['start_date']?.toString() ?? r['travel_date'].toString();
+
+        String key = "${driver}_${origin}_${dest}_$start";
+
+        if (!rutasAgrupadas.containsKey(key)) {
+          rutasAgrupadas[key] = r;
+        }
+      }
+
       setState(() {
-        rutasEncontradas = resultados;
+        rutasEncontradas = rutasAgrupadas.values.toList();
       });
 
       if (mounted) _mostrarResultadosBottomSheet();
@@ -329,12 +344,62 @@ class _SearchRouteScreenState extends State<SearchRouteScreen> {
                                     ],
                                   ),
 
-                                  SizedBox(height: 20),
-                                  Divider(
-                                    color: Colors.grey.shade200,
-                                    height: 1,
-                                  ),
                                   SizedBox(height: 15),
+
+                                  Row(
+                                    children: [
+                                      if (ruta['pref_no_talk'] == true ||
+                                          ruta['pref_no_talk'] == 1)
+                                        Padding(
+                                          padding: EdgeInsets.only(right: 8),
+                                          child: Tooltip(
+                                            message: "Sin conversar",
+                                            child: Text(
+                                              "😶",
+                                              style: TextStyle(fontSize: 18),
+                                            ),
+                                          ),
+                                        ),
+                                      if (ruta['pref_luggage'] == true ||
+                                          ruta['pref_luggage'] == 1)
+                                        Padding(
+                                          padding: EdgeInsets.only(right: 8),
+                                          child: Tooltip(
+                                            message: "Equipaje permitido",
+                                            child: Text(
+                                              "💼",
+                                              style: TextStyle(fontSize: 18),
+                                            ),
+                                          ),
+                                        ),
+                                      if (ruta['pref_music'] == true ||
+                                          ruta['pref_music'] == 1)
+                                        Padding(
+                                          padding: EdgeInsets.only(right: 8),
+                                          child: Tooltip(
+                                            message: "Música durante el viaje",
+                                            child: Text(
+                                              "🎵",
+                                              style: TextStyle(fontSize: 18),
+                                            ),
+                                          ),
+                                        ),
+                                      if (ruta['pref_smoke'] == true ||
+                                          ruta['pref_smoke'] == 1)
+                                        Padding(
+                                          padding: EdgeInsets.only(right: 8),
+                                          child: Tooltip(
+                                            message: "Fumar permitido",
+                                            child: Text(
+                                              "🚬",
+                                              style: TextStyle(fontSize: 18),
+                                            ),
+                                          ),
+                                        ),
+                                    ],
+                                  ),
+
+                                  SizedBox(height: 10),
 
                                   // conductor y Botón
                                   Row(

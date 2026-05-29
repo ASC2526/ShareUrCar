@@ -30,10 +30,13 @@ class _CreateRouteScreenState extends State<CreateRouteScreen> {
   List<String> puntosRecogida = [];
 
   TimeOfDay horaSalida = TimeOfDay(hour: 8, minute: 0);
+  TimeOfDay? horaVuelta;
   int plazas = 3;
 
   String frecuenciaSeleccionada = 'puntual';
   DateTime? fechaPuntual;
+  DateTime? fechaInicioSemanal;
+  DateTime? fechaFinSemanal;
   List<String> diasSemana = ['L', 'M', 'X', 'J', 'V', 'S', 'D'];
   List<String> diasSeleccionados = [];
 
@@ -48,7 +51,7 @@ class _CreateRouteScreenState extends State<CreateRouteScreen> {
   Timer? _debounce;
 
   // funciones para hora y fecha
-  Future<void> _seleccionarHora(BuildContext context) async {
+  Future<void> _seleccionarHoraSalida(BuildContext context) async {
     final TimeOfDay? picked = await showTimePicker(
       context: context,
       initialTime: horaSalida,
@@ -58,7 +61,17 @@ class _CreateRouteScreenState extends State<CreateRouteScreen> {
     }
   }
 
-  Future<void> _seleccionarFecha(BuildContext context) async {
+  Future<void> _seleccionarHoraVuelta(BuildContext context) async {
+    final TimeOfDay? picked = await showTimePicker(
+      context: context,
+      initialTime: horaVuelta ?? TimeOfDay(hour: 15, minute: 0),
+    );
+    if (picked != null) {
+      setState(() => horaVuelta = picked);
+    }
+  }
+
+  Future<void> _seleccionarFechaPuntual(BuildContext context) async {
     final DateTime? picked = await showDatePicker(
       context: context,
       initialDate: DateTime.now(),
@@ -95,19 +108,70 @@ class _CreateRouteScreenState extends State<CreateRouteScreen> {
   void submitRoute() async {
     if (!_formKey.currentState!.validate()) return;
 
-    if (frecuenciaSeleccionada == 'puntual' && fechaPuntual == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text("Debes seleccionar una fecha para tu viaje"),
-          backgroundColor: Colors.red,
-        ),
-      );
-      return;
+    final ahora = DateTime.now();
+    final horaActual = TimeOfDay.now();
+
+    if (frecuenciaSeleccionada == 'puntual') {
+      if (fechaPuntual == null) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text("Debes seleccionar una fecha para tu viaje"),
+            backgroundColor: Colors.red,
+          ),
+        );
+        return;
+      }
+      if (fechaPuntual!.year == ahora.year &&
+          fechaPuntual!.month == ahora.month &&
+          fechaPuntual!.day == ahora.day) {
+        if (horaSalida.hour < horaActual.hour ||
+            (horaSalida.hour == horaActual.hour &&
+                horaSalida.minute < horaActual.minute)) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text("La hora de salida no puede ser en el pasado"),
+              backgroundColor: Colors.red,
+            ),
+          );
+          return;
+        }
+      }
     }
-    if (frecuenciaSeleccionada == 'semanal' && diasSeleccionados.isEmpty) {
+
+    if (frecuenciaSeleccionada == 'semanal') {
+      if (diasSeleccionados.isEmpty) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text("Debes seleccionar al menos un día de la semana"),
+            backgroundColor: Colors.red,
+          ),
+        );
+        return;
+      }
+      if (fechaInicioSemanal == null || fechaFinSemanal == null) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text("Debes seleccionar fecha de inicio y fin"),
+            backgroundColor: Colors.red,
+          ),
+        );
+        return;
+      }
+      if (fechaFinSemanal!.isBefore(fechaInicioSemanal!)) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text("La fecha fin no puede ser anterior a la de inicio"),
+            backgroundColor: Colors.red,
+          ),
+        );
+        return;
+      }
+    }
+
+    if (allowRoundTrip && horaVuelta == null) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text("Debes seleccionar al menos un día de la semana"),
+          content: Text("Debes indicar a qué hora es la vuelta"),
           backgroundColor: Colors.red,
         ),
       );
@@ -117,7 +181,7 @@ class _CreateRouteScreenState extends State<CreateRouteScreen> {
     if (selectedOriginLat == null || selectedDestLat == null) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text("Selecciona las direcciones de la lista desplegable"),
+          content: Text("Selecciona las direcciones de la lista"),
           backgroundColor: Colors.orange,
         ),
       );
@@ -167,16 +231,23 @@ class _CreateRouteScreenState extends State<CreateRouteScreen> {
     try {
       final String horaFormateada =
           "${horaSalida.hour.toString().padLeft(2, '0')}:${horaSalida.minute.toString().padLeft(2, '0')}:00";
+      final String horaVueltaFormateada = allowRoundTrip && horaVuelta != null
+          ? "${horaVuelta!.hour.toString().padLeft(2, '0')}:${horaVuelta!.minute.toString().padLeft(2, '0')}:00"
+          : "";
 
       String daysOfWeek = "";
       String travelDate = "";
+      String startDate = "";
+      String endDate = "";
 
       if (frecuenciaSeleccionada == 'puntual') {
         travelDate = DateFormat('yyyy-MM-dd').format(fechaPuntual!);
         daysOfWeek = "Puntual";
       } else {
         daysOfWeek = diasSeleccionados.join(",");
-        travelDate = DateFormat('yyyy-MM-dd').format(DateTime.now());
+        startDate = DateFormat('yyyy-MM-dd').format(fechaInicioSemanal!);
+        endDate = DateFormat('yyyy-MM-dd').format(fechaFinSemanal!);
+        travelDate = startDate;
       }
 
       await ApiService.createRoute({
@@ -191,8 +262,15 @@ class _CreateRouteScreenState extends State<CreateRouteScreen> {
         "frequency": frecuenciaSeleccionada,
         "days_of_week": daysOfWeek,
         "travel_date": travelDate,
+        "start_date": startDate.isNotEmpty ? startDate : null,
+        "end_date": endDate.isNotEmpty ? endDate : null,
         "available_seats": plazas,
         "allowRoundTrip": allowRoundTrip,
+        "return_time": allowRoundTrip ? horaVueltaFormateada : null,
+        "pref_no_talk": prefSinConversar,
+        "pref_luggage": prefEquipaje,
+        "pref_music": prefMusica,
+        "pref_smoke": prefFumar,
       });
 
       if (!mounted) return;
@@ -436,6 +514,7 @@ class _CreateRouteScreenState extends State<CreateRouteScreen> {
               _buildContainer(
                 title: "¿Cuándo viajas?",
                 child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Container(
                       decoration: BoxDecoration(
@@ -502,9 +581,10 @@ class _CreateRouteScreenState extends State<CreateRouteScreen> {
                       ),
                     ),
                     SizedBox(height: 15),
+
                     if (frecuenciaSeleccionada == 'puntual')
                       InkWell(
-                        onTap: () => _seleccionarFecha(context),
+                        onTap: () => _seleccionarFechaPuntual(context),
                         borderRadius: BorderRadius.circular(12),
                         child: Container(
                           padding: EdgeInsets.all(16),
@@ -570,6 +650,114 @@ class _CreateRouteScreenState extends State<CreateRouteScreen> {
                               );
                             }).toList(),
                           ),
+                          SizedBox(height: 15),
+                          Row(
+                            children: [
+                              Expanded(
+                                child: InkWell(
+                                  onTap: () async {
+                                    final DateTime? picked =
+                                        await showDatePicker(
+                                          context: context,
+                                          initialDate: DateTime.now(),
+                                          firstDate: DateTime.now(),
+                                          lastDate: DateTime.now().add(
+                                            Duration(days: 90),
+                                          ),
+                                        );
+                                    if (picked != null)
+                                      setState(
+                                        () => fechaInicioSemanal = picked,
+                                      );
+                                  },
+                                  child: Container(
+                                    padding: EdgeInsets.all(12),
+                                    decoration: BoxDecoration(
+                                      border: Border.all(
+                                        color: Colors.grey.shade300,
+                                      ),
+                                      borderRadius: BorderRadius.circular(12),
+                                    ),
+                                    child: Column(
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.start,
+                                      children: [
+                                        Text(
+                                          "Inicia",
+                                          style: TextStyle(
+                                            fontSize: 12,
+                                            color: Colors.grey,
+                                          ),
+                                        ),
+                                        Text(
+                                          fechaInicioSemanal == null
+                                              ? "Seleccionar"
+                                              : DateFormat(
+                                                  'dd/MM/yy',
+                                                ).format(fechaInicioSemanal!),
+                                          style: TextStyle(
+                                            fontWeight: FontWeight.bold,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                ),
+                              ),
+                              SizedBox(width: 10),
+                              Expanded(
+                                child: InkWell(
+                                  onTap: () async {
+                                    final DateTime?
+                                    picked = await showDatePicker(
+                                      context: context,
+                                      initialDate:
+                                          fechaInicioSemanal ?? DateTime.now(),
+                                      firstDate:
+                                          fechaInicioSemanal ?? DateTime.now(),
+                                      lastDate: DateTime.now().add(
+                                        Duration(days: 90),
+                                      ),
+                                    );
+                                    if (picked != null)
+                                      setState(() => fechaFinSemanal = picked);
+                                  },
+                                  child: Container(
+                                    padding: EdgeInsets.all(12),
+                                    decoration: BoxDecoration(
+                                      border: Border.all(
+                                        color: Colors.grey.shade300,
+                                      ),
+                                      borderRadius: BorderRadius.circular(12),
+                                    ),
+                                    child: Column(
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.start,
+                                      children: [
+                                        Text(
+                                          "Termina",
+                                          style: TextStyle(
+                                            fontSize: 12,
+                                            color: Colors.grey,
+                                          ),
+                                        ),
+                                        Text(
+                                          fechaFinSemanal == null
+                                              ? "Seleccionar"
+                                              : DateFormat(
+                                                  'dd/MM/yy',
+                                                ).format(fechaFinSemanal!),
+                                          style: TextStyle(
+                                            fontWeight: FontWeight.bold,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
                         ],
                       ),
                   ],
@@ -587,7 +775,7 @@ class _CreateRouteScreenState extends State<CreateRouteScreen> {
                       children: [
                         Expanded(
                           child: InkWell(
-                            onTap: () => _seleccionarHora(context),
+                            onTap: () => _seleccionarHoraSalida(context),
                             child: Container(
                               padding: EdgeInsets.all(16),
                               decoration: BoxDecoration(
@@ -604,9 +792,7 @@ class _CreateRouteScreenState extends State<CreateRouteScreen> {
                                       fontSize: 12,
                                     ),
                                   ),
-
                                   SizedBox(height: 5),
-
                                   Row(
                                     children: [
                                       Icon(
@@ -614,9 +800,7 @@ class _CreateRouteScreenState extends State<CreateRouteScreen> {
                                         size: 18,
                                         color: Color(0xFF49A09D),
                                       ),
-
                                       SizedBox(width: 10),
-
                                       Text(
                                         horaSalida.format(context),
                                         style: TextStyle(
@@ -631,9 +815,7 @@ class _CreateRouteScreenState extends State<CreateRouteScreen> {
                             ),
                           ),
                         ),
-
                         SizedBox(width: 15),
-
                         Expanded(
                           child: Container(
                             padding: EdgeInsets.all(6),
@@ -657,21 +839,17 @@ class _CreateRouteScreenState extends State<CreateRouteScreen> {
                                     ),
                                   ),
                                 ),
-
                                 Row(
                                   mainAxisAlignment:
                                       MainAxisAlignment.spaceEvenly,
                                   children: [
                                     IconButton(
                                       icon: Icon(Icons.remove_circle_outline),
-
                                       onPressed: plazas > 1
                                           ? () => setState(() => plazas--)
                                           : null,
-
                                       color: Colors.red.shade300,
                                     ),
-
                                     Text(
                                       "$plazas",
                                       style: TextStyle(
@@ -679,14 +857,11 @@ class _CreateRouteScreenState extends State<CreateRouteScreen> {
                                         fontWeight: FontWeight.bold,
                                       ),
                                     ),
-
                                     IconButton(
                                       icon: Icon(Icons.add_circle_outline),
-
                                       onPressed: plazas < 6
                                           ? () => setState(() => plazas++)
                                           : null,
-
                                       color: Colors.green.shade400,
                                     ),
                                   ],
@@ -702,27 +877,68 @@ class _CreateRouteScreenState extends State<CreateRouteScreen> {
 
                     CheckboxListTile(
                       value: allowRoundTrip,
-
                       onChanged: (value) {
                         setState(() {
                           allowRoundTrip = value!;
+                          if (!allowRoundTrip) horaVuelta = null;
                         });
                       },
-
                       activeColor: Color(0xFF5F2C82),
-
                       contentPadding: EdgeInsets.zero,
-
                       title: Text(
                         "Permitir ida y vuelta",
                         style: TextStyle(fontWeight: FontWeight.w600),
                       ),
-
                       subtitle: Text(
                         "Los pasajeros podrán reservar regreso",
                         style: TextStyle(fontSize: 12),
                       ),
                     ),
+                    if (allowRoundTrip)
+                      Padding(
+                        padding: const EdgeInsets.only(top: 10.0),
+                        child: InkWell(
+                          onTap: () => _seleccionarHoraVuelta(context),
+                          child: Container(
+                            padding: EdgeInsets.all(16),
+                            decoration: BoxDecoration(
+                              color: Colors.blue.shade50,
+                              border: Border.all(color: Colors.blue.shade200),
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            child: Row(
+                              children: [
+                                Icon(
+                                  Icons.settings_backup_restore,
+                                  color: Color(0xFF5F2C82),
+                                ),
+                                SizedBox(width: 15),
+                                Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      "Hora de vuelta",
+                                      style: TextStyle(
+                                        color: Colors.grey.shade700,
+                                        fontSize: 12,
+                                      ),
+                                    ),
+                                    Text(
+                                      horaVuelta == null
+                                          ? "Seleccionar hora"
+                                          : horaVuelta!.format(context),
+                                      style: TextStyle(
+                                        fontSize: 16,
+                                        fontWeight: FontWeight.bold,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ),
                   ],
                 ),
               ),
