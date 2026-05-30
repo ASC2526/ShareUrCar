@@ -67,30 +67,17 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
         "carPlate": _plateController.text,
       };
 
-      bool success = await ApiService.updateUserProfile(
+      await ApiService.updateUserProfile(
         updatedData,
         int.parse(userId.toString()),
       );
-
-      if (success) {
-        if (!mounted) return;
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text("¡Perfil actualizado con éxito!"),
-            backgroundColor: Colors.green,
-          ),
-        );
-        Navigator.pop(context, true);
-      } else {
-        throw Exception("Error del servidor");
-      }
+      if (!mounted) return;
+      Navigator.pop(context, true);
     } catch (e) {
       if (!mounted) return;
+      String error = e.toString().replaceAll("Exception: ", "");
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text("Error al guardar: $e"),
-          backgroundColor: Colors.red,
-        ),
+        SnackBar(content: Text(error), backgroundColor: Colors.red),
       );
     } finally {
       if (mounted) setState(() => _isLoading = false);
@@ -162,17 +149,54 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
             _buildField("Email", _emailController),
             _buildField("Sobre mí", _aboutController, maxLines: 3),
             Divider(height: 40),
-            Align(
-              alignment: Alignment.centerLeft,
-              child: Text(
-                "Vehículo",
-                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+
+            if (widget.user['carPlate'] != null) ...[
+              Align(
+                alignment: Alignment.centerLeft,
+                child: Text(
+                  "Vehículo",
+                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                ),
               ),
-            ),
-            SizedBox(height: 15),
-            _buildField("Modelo", _modelController),
-            _buildField("Color", _colorController),
-            _buildField("Matrícula", _plateController),
+
+              SizedBox(height: 15),
+
+              _buildField("Modelo", _modelController),
+              _buildField("Color", _colorController),
+              _buildField("Matrícula", _plateController),
+            ] else ...[
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: Colors.grey.shade100,
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Column(
+                  children: const [
+                    Icon(
+                      Icons.directions_car,
+                      size: 40,
+                      color: Color(0xFF5F2C82),
+                    ),
+
+                    SizedBox(height: 10),
+
+                    Text(
+                      "No tienes vehículo registrado",
+                      style: TextStyle(fontWeight: FontWeight.bold),
+                    ),
+
+                    SizedBox(height: 8),
+
+                    Text(
+                      "Para registrar un vehículo debes crear una ruta por primera vez.",
+                      textAlign: TextAlign.center,
+                    ),
+                  ],
+                ),
+              ),
+            ],
           ],
         ),
       ),

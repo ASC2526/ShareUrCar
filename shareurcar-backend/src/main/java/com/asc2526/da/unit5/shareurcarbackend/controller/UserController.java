@@ -72,11 +72,6 @@ public class UserController {
     @PutMapping("/{id}")
     public ResponseEntity<?> updateProfile(@PathVariable Integer id, @RequestBody Map<String, Object> updates) {
         User updatedUser = userService.updateUser(id, updates);
-
-        if (updates.containsKey("carModel") || updates.containsKey("carColor") || updates.containsKey("carPlate")) {
-            driverService.updateDriver(id, updates);
-        }
-
         return ResponseEntity.ok(updatedUser);
     }
 

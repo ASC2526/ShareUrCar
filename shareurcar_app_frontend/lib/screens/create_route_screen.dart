@@ -283,20 +283,31 @@ class _CreateRouteScreenState extends State<CreateRouteScreen> {
       Navigator.pop(context, true);
     } catch (e) {
       if (!mounted) return;
-      if (e.toString().contains("coche") ||
-          e.toString().contains("conductor") ||
-          e.toString().contains("vehículo")) {
+
+      String error = e.toString().replaceAll("Exception: ", "");
+
+      if (error.contains("coche") ||
+          error.contains("conductor") ||
+          error.contains("vehículo")) {
         _showRegisterCarDialog();
-      } else {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text("Error: ${e.toString()}"),
-            backgroundColor: Colors.red,
-          ),
-        );
+        return;
       }
+
+      if (error.contains("409")) {
+        error = "Ya existe un vehículo con esa matrícula";
+      }
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(error),
+          backgroundColor: Colors.red,
+          duration: Duration(seconds: 4),
+        ),
+      );
     } finally {
-      if (mounted) setState(() => isLoading = false);
+      if (mounted) {
+        setState(() => isLoading = false);
+      }
     }
   }
 
@@ -381,11 +392,11 @@ class _CreateRouteScreenState extends State<CreateRouteScreen> {
                 );
               } catch (ex) {
                 if (!mounted) return;
+
+                String error = ex.toString().replaceAll("Exception: ", "");
+
                 ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(
-                    content: Text(ex.toString()),
-                    backgroundColor: Colors.red,
-                  ),
+                  SnackBar(content: Text(error), backgroundColor: Colors.red),
                 );
               }
             },

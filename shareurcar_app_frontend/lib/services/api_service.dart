@@ -83,7 +83,15 @@ class ApiService {
     );
 
     if (response.statusCode != 201) {
-      throw Exception("Error al registrar el vehículo. Comprueba los datos.");
+      try {
+        final body = jsonDecode(response.body);
+
+        throw Exception(
+          body['message'] ?? body['error'] ?? "Error al registrar el vehículo",
+        );
+      } catch (_) {
+        throw Exception("Error al registrar el vehículo");
+      }
     }
   }
 
@@ -230,8 +238,15 @@ class ApiService {
       headers: {"Content-Type": "application/json"},
       body: json.encode(data),
     );
-
-    return response.statusCode == 200;
+    if (response.statusCode == 200) {
+      return true;
+    }
+    try {
+      final body = jsonDecode(response.body);
+      throw Exception(body['message'] ?? body['error'] ?? response.body);
+    } catch (_) {
+      throw Exception(response.body);
+    }
   }
 
   static Future<Map<String, dynamic>> getUserById(int userId) async {

@@ -51,84 +51,6 @@ public class UserService {
         userRepository.deleteUserByIdUser(id);
     }
 
-    @Transactional
-    public User updateUser(Integer id, Map<String, Object> updates) {
-        if (updates == null || updates.isEmpty()) {
-            throw new IllegalArgumentException("No se enviaron datos para actualizar");
-        }
-        User user = userRepository.findUserByIdUser(id).orElseThrow(() -> new UserNotFoundException(id));
-        if (updates.containsKey("firstname")) {
-            String fn = (String) updates.get("firstname");
-            if (fn == null || fn.isEmpty())
-                throw new IllegalArgumentException("El nombre no puede estar vacío");
-            user.setFirstname(fn);
-        }
-        if (updates.containsKey("lastname")) {
-            user.setLastname((String) updates.get("lastname"));
-        }
-
-        if (updates.containsKey("email")) {
-            String newEmail = (String) updates.get("email");
-            if (newEmail == null || newEmail.isEmpty())
-                throw new IllegalArgumentException("El email es obligatorio");
-            if (!user.getEmail().equals(newEmail) && userRepository.existsByEmail(newEmail)) {
-                throw new AlreadyExistsException("Email ya en uso");
-            }
-            user.setEmail(newEmail);
-        }
-        if (updates.containsKey("phone"))
-            user.setPhone((String) updates.get("phone"));
-        if (updates.containsKey("aboutMe"))
-            user.setAboutMe((String) updates.get("aboutMe"));
-        if (updates.containsKey("profile_photo"))
-            user.setProfile_photo((String) updates.get("profile_photo"));
-
-        if (updates.containsKey("driver") && updates.get("driver") != null) {
-            Map<String, Object> driverData = (Map<String, Object>) updates.get("driver");
-
-            String newCarPlate = (String) driverData.get("carPlate");
-            String newCarModel = (String) driverData.get("carModel");
-            String newCarColor = (String) driverData.get("carColor");
-            Integer newMaxSeats = driverData.get("maxSeats") != null ? (Integer) driverData.get("maxSeats") : null;
-
-            Optional<Driver> existingDriverOpt = driverRepository.findByIdDriver(id);
-
-            if (existingDriverOpt.isPresent()) {
-                Driver existingDriver = existingDriverOpt.get();
-
-                if (existingDriver.getCarPlate().equals(newCarPlate)) {
-                    if (newCarModel != null) existingDriver.setCarModel(newCarModel);
-                    if (newCarColor != null) existingDriver.setCarColor(newCarColor);
-                    if (newMaxSeats != null) existingDriver.setMaxSeats(newMaxSeats);
-
-                    driverRepository.save(existingDriver);
-                }
-                else {
-                    driverRepository.delete(existingDriver);
-                    driverRepository.flush();
-
-                    Driver newDriver = new Driver();
-                    newDriver.setCarPlate(newCarPlate);
-                    newDriver.setIdDriver(id);
-                    newDriver.setCarModel(newCarModel);
-                    newDriver.setCarColor(newCarColor);
-                    if (newMaxSeats != null) newDriver.setMaxSeats(newMaxSeats);
-
-                    driverRepository.save(newDriver);
-                }
-            } else {
-                Driver newDriver = new Driver();
-                newDriver.setCarPlate(newCarPlate);
-                newDriver.setIdDriver(id);
-                newDriver.setCarModel(newCarModel);
-                newDriver.setCarColor(newCarColor);
-                if (newMaxSeats != null) newDriver.setMaxSeats(newMaxSeats);
-
-                driverRepository.save(newDriver);
-            }
-        }
-        return userRepository.save(user);
-    }
 
     public List<Review> getUserReviews(Integer userId) {
         return reviewRepository.findByIdReviewed(userId);
@@ -151,5 +73,133 @@ public class UserService {
         }
         user.setBalance(balance + amount);
         return userRepository.save(user);
+    }
+
+    @Transactional
+    public User updateUser(Integer id, Map<String, Object> updates) {
+        if (updates == null || updates.isEmpty()) {
+            throw new IllegalArgumentException("No se enviaron datos para actualizar");
+        }
+        User user = userRepository.findUserByIdUser(id).orElseThrow(() -> new UserNotFoundException(id));
+        updateFirstname(user, updates);
+        updateLastname(user, updates);
+        updateEmail(user, updates);
+        updatePhone(user, updates);
+        updateAboutMe(user, updates);
+        updateProfilePhoto(user, updates);
+        updateDriverData(id, updates);
+        return userRepository.save(user);
+    }
+
+    private void updateDriverData(Integer id, Map<String, Object> updates) {
+        String newCarPlate = (String) updates.get("carPlate");
+        String newCarModel = (String) updates.get("carModel");
+        String newCarColor = (String) updates.get("carColor");
+        Integer newMaxSeats = null;
+        if (updates.get("maxSeats") != null) {
+            newMaxSeats = (Integer) updates.get("maxSeats");
+        }
+        Optional<Driver> existingDriverOpt = driverRepository.findByIdDriver(id);
+        if (existingDriverOpt.isEmpty()) {
+            return;
+        }
+        Driver existingDriver = existingDriverOpt.get();
+        if (newCarPlate != null && !newCarPlate.isBlank()) {
+            newCarPlate = newCarPlate.toUpperCase().replace(" ", "");
+            if (!newCarPlate.matches("\\d{4}[A-Z]{3}")) {
+                throw new IllegalArgumentException("La matrícula debe tener formato 1234ABC");
+            }
+        }
+        if (newCarModel != null && !newCarModel.isBlank() && newCarModel.length() < 2) {
+            throw new IllegalArgumentException("El modelo es demasiado corto");
+        }
+        if (newCarColor != null && !newCarColor.isBlank() && newCarColor.length() < 3) {
+            throw new IllegalArgumentException("Introduce un color válido");
+        }
+        if (newMaxSeats != null && newMaxSeats < 1) {
+            throw new IllegalArgumentException("Las plazas deben ser mayores que 0");
+        }
+
+        if (newCarPlate != null && !newCarPlate.isBlank() && !existingDriver.getCarPlate().equals(newCarPlate)) {
+
+            if (driverRepository.existsByCarPlate(newCarPlate)) {
+                throw new AlreadyExistsException("Ya existe un vehículo con esa matrícula");
+            }
+            driverRepository.delete(existingDriver);
+            driverRepository.flush();
+            Driver newDriver = new Driver();
+            newDriver.setCarPlate(newCarPlate);
+            newDriver.setIdDriver(id);
+            newDriver.setCarModel(newCarModel != null ? newCarModel : existingDriver.getCarModel());
+            newDriver.setCarColor(newCarColor != null ? newCarColor : existingDriver.getCarColor());
+            newDriver.setMaxSeats(newMaxSeats != null ? newMaxSeats : existingDriver.getMaxSeats());
+            driverRepository.save(newDriver);
+            return;
+        }
+        if (newCarModel != null && !newCarModel.isBlank()) {
+            existingDriver.setCarModel(newCarModel);
+        }
+        if (newCarColor != null && !newCarColor.isBlank()) {
+            existingDriver.setCarColor(newCarColor);
+        }
+        if (newMaxSeats != null) {
+            existingDriver.setMaxSeats(newMaxSeats);
+        }
+        driverRepository.save(existingDriver);
+    }
+
+    private void updateFirstname(User user, Map<String, Object> updates) {
+        if (!updates.containsKey("firstname")) {
+            return;
+        }
+        String fn = (String) updates.get("firstname");
+        if (fn == null || fn.isBlank()) {
+            throw new IllegalArgumentException("El nombre no puede estar vacío");
+        }
+        user.setFirstname(fn);
+    }
+
+    private void updateLastname(User user, Map<String, Object> updates) {
+        if (updates.containsKey("lastname")) {
+            user.setLastname((String) updates.get("lastname"));
+        }
+    }
+
+    private void updateEmail(User user, Map<String, Object> updates) {
+        if (!updates.containsKey("email")) {
+            return;
+        }
+        String newEmail = (String) updates.get("email");
+        if (newEmail == null || newEmail.isBlank()) {
+            throw new IllegalArgumentException("El email es obligatorio");
+        }
+
+        if (!user.getEmail().equals(newEmail) && userRepository.existsByEmail(newEmail)) {
+            throw new AlreadyExistsException("Email ya en uso");
+        }
+        user.setEmail(newEmail);
+    }
+
+    private void updatePhone(User user, Map<String, Object> updates) {
+        if (!updates.containsKey("phone")) {
+            return;
+        }
+        String phone = (String) updates.get("phone");
+        if (phone != null && !phone.isBlank() && !phone.matches("\\d{9}")) {
+            throw new IllegalArgumentException("El teléfono debe tener 9 dígitos");
+        }
+        user.setPhone(phone);
+    }
+
+    private void updateAboutMe(User user, Map<String, Object> updates) {
+        if (updates.containsKey("aboutMe")) {
+            user.setAboutMe((String) updates.get("aboutMe"));
+        }
+    }
+
+    private void updateProfilePhoto(User user, Map<String, Object> updates) {
+        if (updates.containsKey("profile_photo")) {
+            user.setProfile_photo((String) updates.get("profile_photo"));
+        }
     }
 }

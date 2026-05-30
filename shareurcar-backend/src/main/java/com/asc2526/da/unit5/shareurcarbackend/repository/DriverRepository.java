@@ -5,8 +5,11 @@ import org.springframework.data.jpa.repository.JpaRepository;
 
 import java.util.Optional;
 
-public interface DriverRepository extends JpaRepository<Driver, String> {
+public interface DriverRepository extends JpaRepository<Driver, Integer> {
     boolean existsByIdDriver(Integer idDriver);
 
     Optional<Driver> findByIdDriver(Integer idDriver);
+    Optional<Driver> findByCarPlate(String carPlate);
+
+    boolean existsByCarPlate(String carPlate);
 }

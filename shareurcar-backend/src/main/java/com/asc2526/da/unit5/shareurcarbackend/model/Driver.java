@@ -15,13 +15,11 @@ import lombok.*;
 public class Driver {
 
     @Id
-    @NotBlank
-    @Column(name = "car_plate")
-    private String carPlate;
-
-    @NotNull
     @Column(name = "id_driver")
     private Integer idDriver;
+
+    @Column(name = "car_plate", unique = true)
+    private String carPlate;
 
     @NotBlank
     @Column(name = "car_model")
