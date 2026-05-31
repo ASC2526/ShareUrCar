@@ -264,23 +264,28 @@ public class RouteService {
         TravelGroup group = travelGroupRepository.findByIdRoute(routeId).orElseThrow();
         GroupPassenger gp = groupPassengerRepository.findByIdGroupAndIdUser(group.getIdGroup(), userId).orElseThrow();
 
-        paymentRepository.findByGroup(group.getIdGroup()).stream()
+        List<Payment> payments = paymentRepository.findByGroup(group.getIdGroup())
+                .stream()
                 .filter(p -> p.getIdUser().equals(userId))
-                .forEach(p -> {
-                    user.setHeldBalance(Math.max(0, held(user) - p.getAmount()));
-                    userRepository.save(user);
-                    p.setPaymentStatus("CANCELLED");
-                    paymentRepository.save(p);
+                .filter(p -> "TRIP_PAYMENT".equals(p.getPaymentType()))
+                .filter(p -> !"CANCELLED".equals(p.getPaymentStatus()))
+                .toList();
 
-                    Payment refund = new Payment();
-                    refund.setIdUser(userId);
-                    refund.setIdGroup(p.getIdGroup());
-                    refund.setAmount(p.getAmount());
-                    refund.setPaymentStatus("COMPLETED");
-                    refund.setPaymentType("REFUND");
-                    refund.setCreatedAt(LocalDateTime.now());
-                    paymentRepository.save(refund);
-                });
+                payments.forEach(p -> {
+                user.setHeldBalance(Math.max(0, held(user) - p.getAmount()));
+                userRepository.save(user);
+                p.setPaymentStatus("CANCELLED");
+                paymentRepository.save(p);
+
+                Payment refund = new Payment();
+                refund.setIdUser(userId);
+                refund.setIdGroup(p.getIdGroup());
+                refund.setAmount(p.getAmount());
+                refund.setPaymentStatus("COMPLETED");
+                refund.setPaymentType("REFUND");
+                refund.setCreatedAt(LocalDateTime.now());
+                paymentRepository.save(refund);
+            });
 
         route.getPassengers().remove(user);
         route.setAvailable_seats(route.getAvailable_seats() + 1);
