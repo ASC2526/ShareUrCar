@@ -7,6 +7,7 @@ import com.asc2526.da.unit5.shareurcarbackend.repository.TravelGroupRepository;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
+import java.util.Optional;
 
 @Service
 public class TravelGroupService {
@@ -49,7 +50,7 @@ public class TravelGroupService {
         travelGroupRepository.deleteById(id);
     }
 
-    public List<TravelGroup> getByRoute(Integer routeId) {
-        return travelGroupRepository.findByRouteId(routeId);
+    public Optional<TravelGroup> getByRoute(Integer routeId) {
+        return travelGroupRepository.findByIdRoute(routeId);
     }
 }

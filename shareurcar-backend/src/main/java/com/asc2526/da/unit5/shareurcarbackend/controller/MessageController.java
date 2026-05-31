@@ -19,20 +19,17 @@ public class MessageController {
         this.service = service;
     }
 
-    // GET mensajes de un grupo
     @GetMapping("/group/{groupId}")
     public List<Map<String, Object>> getByGroup(@PathVariable Integer groupId) {
         return service.getByGroup(groupId);
     }
 
-    // POST enviar mensaje
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
     public Message send(@Valid @RequestBody Message message) {
         return service.sendMessage(message);
     }
 
-    // DELETE
     @DeleteMapping("/{id}")
     @ResponseStatus(HttpStatus.NO_CONTENT)
     public void delete(@PathVariable Integer id) {

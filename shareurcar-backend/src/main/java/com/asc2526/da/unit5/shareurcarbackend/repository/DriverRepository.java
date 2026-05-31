@@ -9,7 +9,6 @@ public interface DriverRepository extends JpaRepository<Driver, Integer> {
     boolean existsByIdDriver(Integer idDriver);
 
     Optional<Driver> findByIdDriver(Integer idDriver);
-    Optional<Driver> findByCarPlate(String carPlate);
 
     boolean existsByCarPlate(String carPlate);
 }

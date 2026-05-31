@@ -4,11 +4,9 @@ import com.asc2526.da.unit5.shareurcarbackend.exception.AlreadyExistsException;
 import com.asc2526.da.unit5.shareurcarbackend.model.Driver;
 import com.asc2526.da.unit5.shareurcarbackend.repository.DriverRepository;
 import com.asc2526.da.unit5.shareurcarbackend.repository.UserRepository;
-import jakarta.transaction.Transactional;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
-import java.util.Map;
 import java.util.Optional;
 
 @Service

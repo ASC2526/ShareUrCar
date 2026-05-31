@@ -41,6 +41,7 @@ public class RouteController {
     public List<Route> createRoute(@Valid @RequestBody RouteCreateDTO dto) {
         return routeService.createRoutes(dto);
     }
+
     @PutMapping("/{id}")
     public Route updateRoute(@PathVariable Integer id, @Valid @RequestBody Route route) {
         return routeService.updateRoute(id, route);
@@ -63,13 +64,45 @@ public class RouteController {
     }
 
     @PostMapping("/{routeId}/join/{userId}")
-    public ResponseEntity<?> joinRoute(@PathVariable Integer routeId, @PathVariable Integer userId ,
+    public ResponseEntity<?> joinRoute(@PathVariable Integer routeId, @PathVariable Integer userId,
                                        @RequestParam(defaultValue = "false") boolean roundTrip) {
         try {
             routeService.joinRoute(routeId, userId, roundTrip);
             return ResponseEntity.ok().body("Te has unido a la ruta con éxito");
         } catch (RuntimeException e) {
             return ResponseEntity.badRequest().body("error: " + e.getMessage());
+        }
+    }
+
+    @PostMapping("/join-multiple/{userId}")
+    public ResponseEntity<?> joinMultiple(@PathVariable Integer userId,
+                                          @RequestBody List<Integer> routeIds,
+                                          @RequestParam(defaultValue = "false") boolean roundTrip) {
+        try {
+            Map<String, Object> result = routeService.joinRoutes(routeIds, userId, roundTrip);
+            return ResponseEntity.ok(result);
+        } catch (RuntimeException e) {
+            return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
+        }
+    }
+
+    @PostMapping("/{routeId}/join-series/{userId}")
+    public ResponseEntity<?> joinSeries(@PathVariable Integer routeId, @PathVariable Integer userId,
+                                        @RequestParam(defaultValue = "false") boolean roundTrip) {
+        try {
+            Map<String, Object> result = routeService.joinSeries(routeId, userId, roundTrip);
+            return ResponseEntity.ok(result);
+        } catch (RuntimeException e) {
+            return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
+        }
+    }
+
+    @GetMapping("/{routeId}/series")
+    public ResponseEntity<?> getSeriesInfo(@PathVariable Integer routeId) {
+        try {
+            return ResponseEntity.ok(routeService.getSeriesInfo(routeId));
+        } catch (RuntimeException e) {
+            return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
         }
     }
 
@@ -118,7 +151,15 @@ public class RouteController {
     @GetMapping("/{routeId}/price")
     public ResponseEntity<?> calculatePrice(@PathVariable Integer routeId) {
         double price = routeService.calculatePrice(routeId);
-        return ResponseEntity.ok(Map.of("price", price)
-        );
+        return ResponseEntity.ok(Map.of("price", price));
+    }
+
+    @GetMapping("/{routeId}/series-routes")
+    public ResponseEntity<?> getSeriesRoutes(@PathVariable Integer routeId) {
+        try {
+            return ResponseEntity.ok(routeService.getSeriesRoutes(routeId));
+        } catch (RuntimeException e) {
+            return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
+        }
     }
 }

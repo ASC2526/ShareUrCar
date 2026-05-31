@@ -37,5 +37,4 @@ public interface GroupPassengerRepository extends JpaRepository<GroupPassenger, 
     Optional<GroupPassenger> findByIdGroupAndIdUser(Integer idGroup, Integer idUser);
 
     List<GroupPassenger> findByIdGroup(Integer idGroup);
-
 }

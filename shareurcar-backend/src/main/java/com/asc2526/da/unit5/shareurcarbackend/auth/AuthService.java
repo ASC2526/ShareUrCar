@@ -36,7 +36,6 @@ public class AuthService {
         }
 
         user.setEmail(user.getEmail().trim());
-        // Encriptamos la contraseña antes de guardarla
         user.setPassword(passwordEncoder.encode(user.getPassword().trim()));
 
         return userRepository.save(user);

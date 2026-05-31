@@ -12,8 +12,10 @@ import java.time.DayOfWeek;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+
 @Service
 public class RouteService {
 
@@ -23,14 +25,16 @@ public class RouteService {
     private final TravelGroupRepository travelGroupRepository;
     private final GroupPassengerRepository groupPassengerRepository;
     private final PaymentRepository paymentRepository;
+    private final NotificationService notificationService;
 
-    public RouteService(RouteRepository routeRepository, DriverRepository driverRepository, UserRepository userRepository, TravelGroupRepository travelGroupRepository, GroupPassengerRepository groupPassengerRepository, PaymentRepository paymentRepository) {
+    public RouteService(RouteRepository routeRepository, DriverRepository driverRepository, UserRepository userRepository, TravelGroupRepository travelGroupRepository, GroupPassengerRepository groupPassengerRepository, PaymentRepository paymentRepository, NotificationService notificationService) {
         this.routeRepository = routeRepository;
         this.driverRepository = driverRepository;
         this.userRepository = userRepository;
         this.travelGroupRepository = travelGroupRepository;
         this.groupPassengerRepository = groupPassengerRepository;
         this.paymentRepository = paymentRepository;
+        this.notificationService = notificationService;
     }
 
     public List<Route> getAllRoutes() {
@@ -198,7 +202,8 @@ public class RouteService {
             map.put("destinationLat",route.getDestinationLat());
             map.put("destinationLng",route.getDestinationLng());
             map.put("departure_time", route.getDeparture_time() != null ? route.getDeparture_time().toString() : null);
-            map.put("arrival_time", route.getArrival_time() != null ? route.getArrival_time().toString() : null);            map.put("days_of_week",route.getDays_of_week());
+            map.put("arrival_time", route.getArrival_time() != null ? route.getArrival_time().toString() : null);
+            map.put("days_of_week",route.getDays_of_week());
             map.put("frequency",route.getFrequency());
             map.put("available_seats",route.getAvailable_seats());
             map.put("status",route.getStatus());
@@ -211,6 +216,7 @@ public class RouteService {
             map.put("start_date", route.getStart_date() != null ? route.getStart_date().toString() : null);
             map.put("end_date", route.getEnd_date() != null ? route.getEnd_date().toString() : null);
             map.put("return_time", route.getReturn_time() != null ? route.getReturn_time().toString() : null);
+            map.put("seriesId", route.getSeriesId());
             map.put("pref_no_talk", route.getPrefNoTalk());
             map.put("pref_luggage", route.getPrefLuggage());
             map.put("pref_music", route.getPrefMusic());
@@ -219,6 +225,7 @@ public class RouteService {
         }
         return result;
     }
+
     @Transactional
     public void deleteRoute(Integer id) {
         routeRepository.findById(id).orElseThrow();
@@ -255,11 +262,11 @@ public class RouteService {
         double latDistance = Math.toRadians(lat2 - lat1);
         double lonDistance = Math.toRadians(lon2 - lon1);
         double a = Math.sin(latDistance / 2)
-                        * Math.sin(latDistance / 2)
-                        + Math.cos(Math.toRadians(lat1))
-                        * Math.cos(Math.toRadians(lat2))
-                        * Math.sin(lonDistance / 2)
-                        * Math.sin(lonDistance / 2);
+                * Math.sin(latDistance / 2)
+                + Math.cos(Math.toRadians(lat1))
+                * Math.cos(Math.toRadians(lat2))
+                * Math.sin(lonDistance / 2)
+                * Math.sin(lonDistance / 2);
         double c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
         return R * c;
     }
@@ -342,7 +349,6 @@ public class RouteService {
         }
 
         double amount = calculateTripPrice(route, 1);
-
         if (roundTrip) {
             amount *= 1.9;
         }
@@ -355,13 +361,34 @@ public class RouteService {
             throw new RuntimeException("Saldo insuficiente");
         }
 
-        TravelGroup group = travelGroupRepository.findByIdRoute(routeId).orElseThrow(() -> new RuntimeException("Grupo no encontrado"));
-        boolean yaEnGrupo = groupPassengerRepository.findByIdGroupAndIdUser(group.getIdGroup(), userId).isPresent();
+        joinSingleRouteInternal(route, user, roundTrip);
+    }
+
+
+    private void joinSingleRouteInternal(Route route, User user, boolean roundTrip) {
+        double amount = calculateTripPrice(route, 1);
+        if (roundTrip) {
+            amount *= 1.9;
+        }
+
+        TravelGroup group = travelGroupRepository.findByIdRoute(route.getIdRoute())
+                .orElseGet(() -> {
+                    TravelGroup newGroup = new TravelGroup();
+                    newGroup.setIdRoute(route.getIdRoute());
+                    newGroup.setIdDriver(route.getIdDriver());
+                    newGroup.setStatus("ACTIVE");
+                    newGroup.setTravelDate(route.getTravel_date());
+                    newGroup.setTravelTime(route.getDeparture_time());
+                    return travelGroupRepository.save(newGroup);
+                });
+
+        boolean yaEnGrupo = groupPassengerRepository
+                .findByIdGroupAndIdUser(group.getIdGroup(), user.getIdUser()).isPresent();
 
         if (!yaEnGrupo) {
             GroupPassenger passenger = new GroupPassenger();
             passenger.setIdGroup(group.getIdGroup());
-            passenger.setIdUser(userId);
+            passenger.setIdUser(user.getIdUser());
             passenger.setState("ACTIVE");
             passenger.setConfirmed(false);
             groupPassengerRepository.save(passenger);
@@ -369,19 +396,112 @@ public class RouteService {
 
         Payment payment = new Payment();
         payment.setIdGroup(group.getIdGroup());
-        payment.setIdUser(userId);
+        payment.setIdUser(user.getIdUser());
         payment.setAmount(amount);
         payment.setPaymentStatus("PENDING");
         payment.setTripType(roundTrip ? "ROUND_TRIP" : "ONE_WAY");
         payment.setCreatedAt(LocalDateTime.now());
         payment.setPaymentType("TRIP_PAYMENT");
-
         paymentRepository.save(payment);
+
+        double held = user.getHeldBalance() != null ? user.getHeldBalance() : 0.0;
         user.setHeldBalance(held + amount);
         userRepository.save(user);
+
         route.getPassengers().add(user);
         route.setAvailable_seats(route.getAvailable_seats() - 1);
         routeRepository.save(route);
+    }
+
+    @Transactional
+    public Map<String, Object> joinRoutes(List<Integer> routeIds, Integer userId, boolean roundTrip) {
+        if (routeIds == null || routeIds.isEmpty()) {
+            throw new IllegalArgumentException("No se han seleccionado rutas");
+        }
+
+        User user = userRepository.findUserByIdUser(userId)
+                .orElseThrow(() -> new RuntimeException("El usuario no existe"));
+
+        List<Route> joinable = new ArrayList<>();
+        double totalAmount = 0.0;
+
+        for (Integer routeId : routeIds) {
+            Route route = routeRepository.findById(routeId).orElse(null);
+            if (route == null) continue;
+            if ("COMPLETED".equals(route.getStatus())) continue;
+            if (route.getIdDriver().equals(userId)) continue;
+            if (route.getPassengers().contains(user)) continue;
+            if (route.getAvailable_seats() <= 0) continue;
+            if (roundTrip && !Boolean.TRUE.equals(route.getAllowRoundTrip())) continue;
+
+            double amount = calculateTripPrice(route, 1);
+            if (roundTrip) amount *= 1.9;
+            totalAmount += amount;
+            joinable.add(route);
+        }
+
+        if (joinable.isEmpty()) {
+            throw new RuntimeException("No hay rutas disponibles para unirse (puede que ya estés unido o no queden plazas)");
+        }
+
+        double balance = user.getBalance() != null ? user.getBalance() : 0.0;
+        double held = user.getHeldBalance() != null ? user.getHeldBalance() : 0.0;
+        double disponible = balance - held;
+
+        if (disponible < totalAmount) {
+            throw new RuntimeException("Saldo insuficiente para unirte a todas las rutas seleccionadas");
+        }
+
+        int joinedCount = 0;
+        for (Route route : joinable) {
+            joinSingleRouteInternal(route, user, roundTrip);
+            joinedCount++;
+        }
+
+        Map<String, Object> result = new HashMap<>();
+        result.put("joined", joinedCount);
+        result.put("requested", routeIds.size());
+        result.put("totalAmount", Math.round(totalAmount * 100.0) / 100.0);
+        return result;
+    }
+
+
+    @Transactional
+    public Map<String, Object> joinSeries(Integer routeId, Integer userId, boolean roundTrip) {
+        Route route = routeRepository.findById(routeId)
+                .orElseThrow(() -> new RouteNotFoundException(routeId));
+
+        String seriesId = route.getSeriesId();
+        List<Route> seriesRoutes;
+        if (seriesId == null) {
+            seriesRoutes = List.of(route);
+        } else {
+            seriesRoutes = routeRepository.findBySeriesId(seriesId);
+        }
+
+        List<Integer> ids = new ArrayList<>();
+        for (Route r : seriesRoutes) {
+            ids.add(r.getIdRoute());
+        }
+        return joinRoutes(ids, userId, roundTrip);
+    }
+
+    public Map<String, Object> getSeriesInfo(Integer routeId) {
+        Route route = routeRepository.findById(routeId)
+                .orElseThrow(() -> new RouteNotFoundException(routeId));
+
+        String seriesId = route.getSeriesId();
+        List<Route> routes = (seriesId == null) ? List.of(route) : routeRepository.findBySeriesId(seriesId);
+
+        long total = routes.stream()
+                .filter(r -> !"COMPLETED".equals(r.getStatus()))
+                .count();
+
+        Map<String, Object> m = new HashMap<>();
+        m.put("seriesId", seriesId);
+        m.put("totalRoutes", total);
+        m.put("isSeries", seriesId != null && total > 1);
+        return m;
     }
 
     @Transactional
@@ -459,29 +579,34 @@ public class RouteService {
     @Transactional
     public void confirmParticipation(Integer routeId, Integer userId) {
 
-        Route route = routeRepository.findById(routeId).orElseThrow(() -> new RouteNotFoundException(routeId));
-        if("COMPLETED".equals(route.getStatus())) {
+        Route route = routeRepository.findById(routeId)
+                .orElseThrow(() -> new RouteNotFoundException(routeId));
+        if ("COMPLETED".equals(route.getStatus())) {
             throw new RuntimeException("Esta ruta ya está finalizada");
         }
-        TravelGroup group = travelGroupRepository.findByIdRoute(routeId).orElseThrow(() -> new RuntimeException("No hay grupo asociado a esta ruta"));
+        TravelGroup group = travelGroupRepository.findByIdRoute(routeId)
+                .orElseThrow(() -> new RuntimeException("No hay grupo asociado a esta ruta"));
 
         if (route.getIdDriver().equals(userId)) {
             route.setDriverConfirmed(true);
             routeRepository.save(route);
         } else {
-            GroupPassenger gp = groupPassengerRepository.findByIdGroupAndIdUser(group.getIdGroup(), userId)
+            GroupPassenger gp = groupPassengerRepository
+                    .findByIdGroupAndIdUser(group.getIdGroup(), userId)
                     .orElseThrow(() -> new RuntimeException("No eres pasajero de este grupo"));
             gp.setConfirmed(true);
             groupPassengerRepository.save(gp);
         }
 
-        if(checkAllConfirmed(route, group)) {
+        if (checkAllConfirmed(route, group)) {
             settleRoutePayments(route, group);
             route.setStatus("COMPLETED");
             route.setDriverConfirmed(false);
             routeRepository.save(route);
+            notificationService.notificarViajeConfirmado(routeId);
         }
     }
+
     private void settleRoutePayments(Route route, TravelGroup group) {
 
         List<Payment> payments = paymentRepository.findByGroup(group.getIdGroup());
@@ -567,4 +692,32 @@ public class RouteService {
         return calculateTripPrice(route, 1);
     }
 
+    public List<Map<String, Object>> getSeriesRoutes(Integer routeId) {
+        Route route = routeRepository.findById(routeId)
+                .orElseThrow(() -> new RouteNotFoundException(routeId));
+        String seriesId = route.getSeriesId();
+        List<Route> routes = (seriesId == null)
+                ? List.of(route)
+                : routeRepository.findBySeriesId(seriesId);
+
+        List<Map<String, Object>> result = new ArrayList<>();
+        for (Route r : routes) {
+            if ("COMPLETED".equals(r.getStatus())) continue;
+            Map<String, Object> m = new HashMap<>();
+            m.put("idRoute", r.getIdRoute());
+            m.put("travel_date", r.getTravel_date() != null ? r.getTravel_date().toString() : null);
+            m.put("departure_time", r.getDeparture_time() != null ? r.getDeparture_time().toString() : null);
+            m.put("available_seats", r.getAvailable_seats());
+            m.put("status", r.getStatus());
+            result.add(m);
+        }
+        result.sort((a, b) -> {
+            String dA = (String) a.get("travel_date");
+            String dB = (String) b.get("travel_date");
+            if (dA == null) return 1;
+            if (dB == null) return -1;
+            return dA.compareTo(dB);
+        });
+        return result;
+    }
 }

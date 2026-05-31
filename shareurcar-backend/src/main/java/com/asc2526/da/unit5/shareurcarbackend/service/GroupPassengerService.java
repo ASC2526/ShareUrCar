@@ -59,7 +59,6 @@ public class GroupPassengerService {
         }
         GroupPassenger gp = getById(id);
 
-        // Si el conductor acepta la solicitud, restamos una plaza y generamos el pago
         if (state.equalsIgnoreCase("aceptado") && !gp.getState().equalsIgnoreCase("aceptado")) {
 
             TravelGroup group = travelGroupRepository.findById(gp.getIdGroup())

@@ -9,14 +9,12 @@ import java.util.Optional;
 
 public interface TravelGroupRepository extends JpaRepository<TravelGroup, Integer> {
 
-    @Query("""
-        SELECT tg
-        FROM TravelGroup tg
-        WHERE tg.idRoute = :routeId
-    """)
-    List<TravelGroup> findByRouteId(@Param("routeId") Integer routeId);
-
     Optional<TravelGroup> findByIdRoute(Integer idRoute);
 
-    Optional<TravelGroup> findBySeriesId(String seriesId);
+    @Query("SELECT g " +
+            "FROM TravelGroup g " +
+            "JOIN Route r ON g.idRoute = r.idRoute " +
+            "WHERE r.seriesId = :seriesId")
+    Optional<TravelGroup> findBySeriesId(@Param("seriesId") String seriesId);
+    List<TravelGroup> findByIdDriver(Integer idDriver);
 }
