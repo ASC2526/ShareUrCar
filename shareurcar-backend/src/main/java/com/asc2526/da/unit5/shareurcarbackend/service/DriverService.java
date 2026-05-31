@@ -32,37 +32,28 @@ public class DriverService {
             throw new RuntimeException("El usuario no existe");
         }
 
-        if (driverRepository.existsByCarPlate(driver.getCarPlate())) {
-            throw new AlreadyExistsException("Ese coche ya está registrado");
-        }
-        String carPlate = driver.getCarPlate();
-
-        if (carPlate == null || carPlate.isBlank()) {
+        String plate = driver.getCarPlate();
+        if (plate == null || plate.isBlank()) {
             throw new IllegalArgumentException("La matrícula es obligatoria");
         }
-
-        carPlate = carPlate.toUpperCase().replace(" ", "");
-
-        if (!carPlate.matches("\\d{4}[A-Z]{3}")) {
-            throw new IllegalArgumentException(
-                    "La matrícula debe tener formato 1234ABC");
+        plate = plate.toUpperCase().replace(" ", "");
+        if (!plate.matches("\\d{4}[A-Z]{3}")) {
+            throw new IllegalArgumentException("La matrícula debe tener formato 1234ABC");
+        }
+        if (driverRepository.existsByCarPlate(plate)) {
+            throw new AlreadyExistsException("Ese coche ya está registrado");
         }
 
-        driver.setCarPlate(carPlate);
-
-        if (driver.getCarModel() == null
-                || driver.getCarModel().isBlank()
+        if (driver.getCarModel() == null || driver.getCarModel().isBlank()
                 || driver.getCarModel().length() < 2) {
-            throw new IllegalArgumentException(
-                    "Introduce un modelo válido");
+            throw new IllegalArgumentException("Introduce un modelo válido");
+        }
+        if (driver.getCarColor() == null || driver.getCarColor().isBlank()
+                || driver.getCarColor().length() < 3) {
+            throw new IllegalArgumentException("Introduce un color válido");
         }
 
-        if (driver.getCarColor() == null
-                || driver.getCarColor().isBlank()
-                || driver.getCarColor().length() < 3) {
-            throw new IllegalArgumentException(
-                    "Introduce un color válido");
-        }
+        driver.setCarPlate(plate);
         return driverRepository.save(driver);
     }
 

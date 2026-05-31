@@ -27,26 +27,4 @@ public class PaymentController {
     public List<Payment> getByUser(@PathVariable Integer userId) {
         return service.getByUser(userId);
     }
-
-    @PostMapping
-    @ResponseStatus(HttpStatus.CREATED)
-    public Payment create(@Valid @RequestBody Payment payment) {
-        return service.create(payment);
-    }
-
-    @PutMapping("/{id}/complete")
-    public Payment complete(@PathVariable Integer id) {
-        return service.markAsCompleted(id);
-    }
-
-    @DeleteMapping("/{id}")
-    @ResponseStatus(HttpStatus.NO_CONTENT)
-    public void delete(@PathVariable Integer id) {
-        service.delete(id);
-    }
-
-    @PutMapping("/{id}/failed")
-    public Payment failed(@PathVariable Integer id) {
-        return service.markAsFailed(id);
-    }
 }

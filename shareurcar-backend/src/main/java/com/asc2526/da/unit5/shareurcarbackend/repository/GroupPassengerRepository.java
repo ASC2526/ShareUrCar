@@ -9,32 +9,9 @@ import java.util.List;
 import java.util.Optional;
 
 public interface GroupPassengerRepository extends JpaRepository<GroupPassenger, Integer> {
-    @Query("""
-        SELECT gp
-        FROM GroupPassenger gp
-        WHERE gp.idGroup = :groupId
-    """)
-    List<GroupPassenger> findByGroupId(@Param("groupId") Integer groupId);
+    List<GroupPassenger> findByIdGroup(Integer idGroup);
 
-    @Query("""
-        SELECT gp
-        FROM GroupPassenger gp
-        WHERE gp.idUser = :userId
-    """)
-    List<GroupPassenger> findByUserId(@Param("userId") Integer userId);
-
-    @Query("""
-    SELECT COUNT(gp) > 0
-    FROM GroupPassenger gp
-    WHERE gp.idGroup = :groupId
-    AND gp.idUser = :userId
-""")
-    boolean existsByGroupAndUser(
-            @Param("groupId") Integer groupId,
-            @Param("userId") Integer userId
-    );
+    List<GroupPassenger> findByIdUser(Integer idUser);
 
     Optional<GroupPassenger> findByIdGroupAndIdUser(Integer idGroup, Integer idUser);
-
-    List<GroupPassenger> findByIdGroup(Integer idGroup);
 }

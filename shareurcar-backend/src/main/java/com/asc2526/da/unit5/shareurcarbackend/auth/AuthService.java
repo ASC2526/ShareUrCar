@@ -27,17 +27,11 @@ public class AuthService {
     }
 
     public User register(User user) {
-        if (user.getEmail() == null || user.getPassword() == null) {
-            throw new RuntimeException("Datos incompletos");
-        }
-
-        if (userRepository.findByEmail(user.getEmail().trim()).isPresent()) {
+        if (userRepository.existsByEmail(user.getEmail().trim())) {
             throw new RuntimeException("El usuario ya existe");
         }
-
         user.setEmail(user.getEmail().trim());
         user.setPassword(passwordEncoder.encode(user.getPassword().trim()));
-
         return userRepository.save(user);
     }
 }

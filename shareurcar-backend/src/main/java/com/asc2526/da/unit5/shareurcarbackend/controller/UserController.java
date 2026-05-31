@@ -75,6 +75,21 @@ public class UserController {
         return ResponseEntity.ok(updatedUser);
     }
 
+    @PostMapping("/{userId}/photo")
+    public ResponseEntity<?> updatePhoto(@PathVariable Integer userId,
+                                         @RequestBody Map<String, String> body) {
+        try {
+            String photo = body.get("photo");
+            User updated = userService.updatePhoto(userId, photo);
+            return ResponseEntity.ok(Map.of(
+                    "profile_photo", updated.getProfile_photo() != null
+                            ? updated.getProfile_photo() : ""
+            ));
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
+        }
+    }
+
     @GetMapping("/{id}/reviews")
     public List<Review> getUserReviews(@PathVariable Integer id) {
         return userService.getUserReviews(id);

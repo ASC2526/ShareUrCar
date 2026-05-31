@@ -29,23 +29,6 @@ public class TravelGroupController {
         return service.getById(id);
     }
 
-    @PostMapping
-    @ResponseStatus(HttpStatus.CREATED)
-    public TravelGroup create(@Valid @RequestBody TravelGroup group) {
-        return service.create(group);
-    }
-
-    @PutMapping("/{id}")
-    public TravelGroup update(@PathVariable Integer id, @Valid @RequestBody TravelGroup group) {
-        return service.update(id, group);
-    }
-
-    @DeleteMapping("/{id}")
-    @ResponseStatus(HttpStatus.NO_CONTENT)
-    public void delete(@PathVariable Integer id) {
-        service.delete(id);
-    }
-
     @GetMapping("/route/{routeId}")
     public Optional<TravelGroup> getByRoute(@PathVariable Integer routeId) {
         return service.getByRoute(routeId);

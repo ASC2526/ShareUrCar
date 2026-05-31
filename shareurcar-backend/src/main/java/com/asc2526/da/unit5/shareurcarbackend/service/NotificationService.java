@@ -2,13 +2,11 @@ package com.asc2526.da.unit5.shareurcarbackend.service;
 
 import com.asc2526.da.unit5.shareurcarbackend.model.*;
 import com.asc2526.da.unit5.shareurcarbackend.repository.*;
+import org.springframework.context.annotation.Lazy;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.util.List;
-import java.util.Map;
-import java.util.ArrayList;
-import java.util.HashMap;
+import java.util.*;
 
 @Service
 public class NotificationService {
@@ -18,44 +16,43 @@ public class NotificationService {
     private final RouteRepository routeRepository;
     private final TravelGroupRepository travelGroupRepository;
     private final GroupPassengerRepository groupPassengerRepository;
-    private final PaymentRepository paymentRepository;
+    private final RouteService routeService;
 
     public NotificationService(NotificationRepository notificationRepository,
                                UserRepository userRepository,
                                RouteRepository routeRepository,
                                TravelGroupRepository travelGroupRepository,
                                GroupPassengerRepository groupPassengerRepository,
-                               PaymentRepository paymentRepository) {
+                               @Lazy RouteService routeService) {
         this.notificationRepository = notificationRepository;
         this.userRepository = userRepository;
         this.routeRepository = routeRepository;
         this.travelGroupRepository = travelGroupRepository;
         this.groupPassengerRepository = groupPassengerRepository;
-        this.paymentRepository = paymentRepository;
+        this.routeService = routeService;
     }
 
-    public Notification crear(Integer idUser, String title, String body) {
+    // crear notificación
+    public void crear(Integer idUser, String title, String body) {
         Notification n = new Notification();
         n.setIdUser(idUser);
         n.setTitle(title);
         n.setBody(body);
-        return notificationRepository.save(n);
+        notificationRepository.save(n);
     }
 
+    // leer notificaciones
     public List<Map<String, Object>> getByUser(Integer userId) {
-        List<Notification> lista =
-                notificationRepository.findByIdUserOrderByCreatedAtDesc(userId);
-        List<Map<String, Object>> result = new ArrayList<>();
-        for (Notification n : lista) {
-            Map<String, Object> m = new HashMap<>();
-            m.put("idNotification", n.getIdNotification());
-            m.put("title", n.getTitle());
-            m.put("body", n.getBody());
-            m.put("isRead", n.getIsRead());
-            m.put("createdAt", n.getCreatedAt());
-            result.add(m);
-        }
-        return result;
+        return notificationRepository.findByIdUserOrderByCreatedAtDesc(userId)
+                .stream().map(n -> {
+                    Map<String, Object> m = new HashMap<>();
+                    m.put("idNotification", n.getIdNotification());
+                    m.put("title",          n.getTitle());
+                    m.put("body",           n.getBody());
+                    m.put("isRead",         n.getIsRead());
+                    m.put("createdAt",      n.getCreatedAt());
+                    return m;
+                }).toList();
     }
 
     public long countUnread(Integer userId) {
@@ -66,49 +63,7 @@ public class NotificationService {
         notificationRepository.markAllAsRead(userId);
     }
 
-    public void notificarIncidenciaPasajero(Integer routeId, Integer reporterId) {
-        Route route = routeRepository.findById(routeId).orElse(null);
-        if (route == null) return;
-
-        User reporter = userRepository.findUserByIdUser(reporterId).orElse(null);
-        String nombreReporter = reporter != null
-                ? reporter.getFirstname() + " " + reporter.getLastname()
-                : "Un pasajero";
-
-        String title = "⚠️ Incidencia reportada";
-        String body = nombreReporter + " ha reportado una incidencia en la ruta "
-                + route.getOrigin() + " → " + route.getDestination()
-                + ". La ruta ha sido cancelada y se han devuelto los saldos.";
-
-        crear(route.getIdDriver(), title, body);
-    }
-
-    public void notificarIncidenciaConductor(Integer routeId, Integer reporterId) {
-        Route route = routeRepository.findById(routeId).orElse(null);
-        if (route == null) return;
-
-        TravelGroup group = travelGroupRepository.findByIdRoute(routeId).orElse(null);
-        if (group == null) return;
-
-        User driver = userRepository.findUserByIdUser(reporterId).orElse(null);
-        String nombreDriver = driver != null
-                ? driver.getFirstname() + " " + driver.getLastname()
-                : "El conductor";
-
-        String title = "⚠️ Ruta cancelada por incidencia";
-        String body = nombreDriver + " ha reportado una incidencia en la ruta "
-                + route.getOrigin() + " → " + route.getDestination()
-                + ". La ruta ha sido cancelada y se ha devuelto tu saldo.";
-
-        List<GroupPassenger> passengers =
-                groupPassengerRepository.findByIdGroup(group.getIdGroup());
-
-        for (GroupPassenger gp : passengers) {
-            if (gp.getIdUser().equals(reporterId)) continue;
-            crear(gp.getIdUser(), title, body);
-        }
-    }
-
+    // notificar viaje confirmado
     public void notificarViajeConfirmado(Integer routeId) {
         Route route = routeRepository.findById(routeId).orElse(null);
         if (route == null) return;
@@ -122,14 +77,14 @@ public class NotificationService {
 
         crear(route.getIdDriver(), title, body);
 
-        List<GroupPassenger> passengers =
-                groupPassengerRepository.findByIdGroup(group.getIdGroup());
-        for (GroupPassenger gp : passengers) {
-            if (gp.getIdUser().equals(route.getIdDriver())) continue;
-            crear(gp.getIdUser(), title, body);
-        }
+        groupPassengerRepository.findByIdGroup(group.getIdGroup()).forEach(gp -> {
+            if (!gp.getIdUser().equals(route.getIdDriver())) {
+                crear(gp.getIdUser(), title, body);
+            }
+        });
     }
 
+    // reportar incidencia
     @Transactional
     public void reportarIncidencia(Integer routeId, Integer reporterId, String mensaje) {
         Route route = routeRepository.findById(routeId)
@@ -142,34 +97,42 @@ public class NotificationService {
             throw new RuntimeException("La ruta ya está cancelada");
         }
 
+        routeService.refundAndCancel(routeId);
+
         boolean esConductor = route.getIdDriver().equals(reporterId);
+        notificarIncidencia(routeId, reporterId, esConductor);
+    }
 
-        TravelGroup group = travelGroupRepository.findByIdRoute(routeId).orElse(null);
-        if (group != null) {
-            List<Payment> payments = paymentRepository.findByGroup(group.getIdGroup());
-            for (Payment payment : payments) {
-                if ("COMPLETED".equals(payment.getPaymentStatus())) continue;
-                User passenger = userRepository.findUserByIdUser(payment.getIdUser()).orElse(null);
-                if (passenger == null) continue;
+    // notificar incidencias
+    private void notificarIncidencia(Integer routeId, Integer reporterId, boolean esConductor) {
+        Route route = routeRepository.findById(routeId).orElse(null);
+        if (route == null) return;
 
-                double held = passenger.getHeldBalance() != null ? passenger.getHeldBalance() : 0.0;
-                double balance = passenger.getBalance() != null ? passenger.getBalance() : 0.0;
-                passenger.setHeldBalance(Math.max(0, held - payment.getAmount()));
-                passenger.setBalance(balance + payment.getAmount());
-                userRepository.save(passenger);
+        User reporter = userRepository.findUserByIdUser(reporterId).orElse(null);
+        String nombreReporter = reporter != null
+                ? reporter.getFirstname() + " " + reporter.getLastname()
+                : esConductor ? "El conductor" : "Un pasajero";
 
-                payment.setPaymentStatus("CANCELLED");
-                paymentRepository.save(payment);
-            }
-        }
-
-        route.setStatus("CANCELLED");
-        routeRepository.save(route);
+        String rutaStr = route.getOrigin() + " → " + route.getDestination();
 
         if (esConductor) {
-            notificarIncidenciaConductor(routeId, reporterId);
+            // si el conductor reporta se notifica a los pasajeros
+            TravelGroup group = travelGroupRepository.findByIdRoute(routeId).orElse(null);
+            if (group == null) return;
+
+            String title = "⚠️ Ruta cancelada por incidencia";
+            String body = nombreReporter + " ha reportado una incidencia en la ruta "
+                    + rutaStr + ". La ruta ha sido cancelada y se ha devuelto tu saldo.";
+
+            groupPassengerRepository.findByIdGroup(group.getIdGroup()).forEach(gp -> {
+                if (!gp.getIdUser().equals(reporterId)) crear(gp.getIdUser(), title, body);
+            });
         } else {
-            notificarIncidenciaPasajero(routeId, reporterId);
+            // si el pasajero reporta se notifica solo al conductor
+            String title = "⚠️ Incidencia reportada";
+            String body = nombreReporter + " ha reportado una incidencia en la ruta "
+                    + rutaStr + ". La ruta ha sido cancelada y se han devuelto los saldos.";
+            crear(route.getIdDriver(), title, body);
         }
     }
 }
