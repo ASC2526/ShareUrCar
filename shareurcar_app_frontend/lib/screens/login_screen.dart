@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:shareurcar_app_frontend/screens/main_navigation.dart';
 import 'package:shareurcar_app_frontend/screens/register_screen.dart';
+import '../app_theme.dart';
 import '../services/api_service.dart';
 
 class LoginScreen extends StatefulWidget {
@@ -55,7 +56,7 @@ class _LoginScreenState extends State<LoginScreen> {
         padding: EdgeInsets.all(25),
         decoration: BoxDecoration(
           gradient: LinearGradient(
-            colors: [Color(0xFF5F2C82), Color(0xFF49A09D)],
+            colors: [kPrimary, kSecondary],
             begin: Alignment.topCenter,
             end: Alignment.bottomCenter,
           ),

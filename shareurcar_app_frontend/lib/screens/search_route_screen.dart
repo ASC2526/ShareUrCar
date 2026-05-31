@@ -3,6 +3,8 @@ import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart';
 import 'package:shareurcar_app_frontend/screens/payments_screen.dart';
 import 'package:shareurcar_app_frontend/screens/route_details_screen.dart';
+import '../app_theme.dart';
+import '../app_utils.dart';
 import '../services/api_service.dart';
 import 'create_route_screen.dart';
 import 'dart:async';
@@ -80,7 +82,9 @@ class _SearchRouteScreenState extends State<SearchRouteScreen> {
 
       setState(() {
         rutasEncontradas = resultados
-            .where((r) => r['status'] != 'COMPLETED')
+            .where(
+              (r) => r['status'] != 'COMPLETED' && r['status'] != 'CANCELLED',
+            )
             .toList();
         _seleccionadas.clear();
       });
@@ -110,27 +114,198 @@ class _SearchRouteScreenState extends State<SearchRouteScreen> {
     return int.tryParse(raw.toString());
   }
 
-  void _unirseASeleccionadas(StateSetter setSheetState) async {
-    if (_seleccionadas.isEmpty) return;
+  // selección de tipo de viaje ida/vuelta + confirmación
+  Future<void> _mostrarModalMultiJoin(StateSetter setSheetState) async {
+    // rutas seleccionadas con su info completa
+    final rutasSelec = rutasEncontradas.where((r) {
+      final rid = _routeId(r);
+      return rid != null && _seleccionadas.contains(rid);
+    }).toList();
 
-    // Popup de confirmación antes de cobrar
+    final anyRoundTrip = rutasSelec.any(
+      (r) => r['allowRoundTrip'] == true || r['allow_round_trip'] == true,
+    );
+
+    bool localRoundTrip = false;
+
+    // tipo de viaje y lista de rutas
+    final seleccion = await showDialog<Map<String, dynamic>?>(
+      context: context,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx2, setD) => AlertDialog(
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(20),
+          ),
+          title: Text("Unirte a ${_seleccionadas.length} ruta(s)"),
+          content: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // Lista de rutas seleccionadas
+                ...rutasSelec.map((r) {
+                  final destino = AppUtils.limpiarDireccion(
+                    (r['destination'] ?? '').toString(),
+                  );
+                  final fecha = AppUtils.fechaRelativa(
+                    r['travel_date']?.toString(),
+                  );
+                  final hora = AppUtils.formatHora(
+                    r['departure_time']?.toString(),
+                  );
+                  return Padding(
+                    padding: const EdgeInsets.only(bottom: 6),
+                    child: Row(
+                      children: [
+                        const Icon(Icons.circle, size: 7, color: kPrimary),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: Text(
+                            "${fecha.isNotEmpty ? '$fecha · ' : ''}$hora · $destino",
+                            style: const TextStyle(fontSize: 13),
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                      ],
+                    ),
+                  );
+                }),
+
+                const Divider(height: 24),
+
+                // Selector ida / ida+vuelta
+                if (!anyRoundTrip)
+                  Container(
+                    padding: const EdgeInsets.all(10),
+                    decoration: BoxDecoration(
+                      color: Colors.blue.shade50,
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    child: const Row(
+                      children: [
+                        Icon(Icons.info_outline, color: Colors.blue, size: 16),
+                        SizedBox(width: 8),
+                        Expanded(
+                          child: Text(
+                            "Estas rutas solo permiten viaje de ida",
+                            style: TextStyle(fontSize: 13),
+                          ),
+                        ),
+                      ],
+                    ),
+                  )
+                else ...[
+                  RadioListTile<bool>(
+                    value: false,
+                    groupValue: localRoundTrip,
+                    activeColor: kPrimary,
+                    contentPadding: EdgeInsets.zero,
+                    title: const Text("Solo ida"),
+                    onChanged: (v) => setD(() => localRoundTrip = v!),
+                  ),
+                  RadioListTile<bool>(
+                    value: true,
+                    groupValue: localRoundTrip,
+                    activeColor: kPrimary,
+                    contentPadding: EdgeInsets.zero,
+                    title: const Text("Ida y vuelta"),
+                    subtitle: const Text(
+                      "Solo para rutas que lo permiten",
+                      style: TextStyle(fontSize: 11),
+                    ),
+                    onChanged: (v) => setD(() => localRoundTrip = v!),
+                  ),
+                ],
+
+                const SizedBox(height: 10),
+
+                Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFF3E5F5),
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: Text(
+                    "El precio exacto se calcula por distancia y se ajusta al confirmar cada viaje.",
+                    style: TextStyle(fontSize: 12, color: Colors.grey.shade700),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx),
+              child: const Text("Cancelar"),
+            ),
+            ElevatedButton(
+              style: ElevatedButton.styleFrom(
+                backgroundColor: kPrimary,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+              ),
+              onPressed: () =>
+                  Navigator.pop(ctx, {'roundTrip': localRoundTrip}),
+              child: const Text(
+                "Continuar",
+                style: TextStyle(color: Colors.white),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+
+    if (seleccion == null || !mounted) return;
+    final roundTrip = seleccion['roundTrip'] as bool;
+
+    // confirmación final
     final confirmar = await showDialog<bool>(
       context: context,
       builder: (_) => AlertDialog(
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
         title: const Row(
           children: [
-            Icon(Icons.payments_outlined, color: Color(0xFF5F2C82)),
+            Icon(Icons.payments_outlined, color: kPrimary),
             SizedBox(width: 10),
             Expanded(child: Text("Confirmar reserva")),
           ],
         ),
-        content: Text(
-          "Vas a unirte a ${_seleccionadas.length} ruta(s) seleccionada(s).\n\n"
-          "Se retendrá el importe correspondiente de tu saldo disponible. "
-          "El precio exacto se calcula en función de la distancia y se ajustará "
-          "al confirmar cada viaje.\n\n¿Quieres continuar?",
-          style: const TextStyle(fontSize: 14),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              "Vas a unirte a ${_seleccionadas.length} ruta(s).",
+              style: const TextStyle(fontSize: 14),
+            ),
+            const SizedBox(height: 10),
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: const Color(0xFFF3E5F5),
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: Text(
+                roundTrip
+                    ? "Tipo: Ida y vuelta (donde aplique)"
+                    : "Tipo: Solo ida",
+                style: const TextStyle(
+                  color: kPrimary,
+                  fontWeight: FontWeight.w600,
+                  fontSize: 13,
+                ),
+              ),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              "Se retendrá el importe de tu saldo disponible.",
+              style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
+            ),
+          ],
         ),
         actions: [
           TextButton(
@@ -138,13 +313,13 @@ class _SearchRouteScreenState extends State<SearchRouteScreen> {
             child: const Text("Cancelar"),
           ),
           ElevatedButton(
-            onPressed: () => Navigator.pop(context, true),
             style: ElevatedButton.styleFrom(
-              backgroundColor: const Color(0xFF5F2C82),
+              backgroundColor: kPrimary,
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(12),
               ),
             ),
+            onPressed: () => Navigator.pop(context, true),
             child: const Text(
               "Confirmar",
               style: TextStyle(color: Colors.white),
@@ -154,14 +329,22 @@ class _SearchRouteScreenState extends State<SearchRouteScreen> {
       ),
     );
 
-    if (confirmar != true) return;
+    if (confirmar != true || !mounted) return;
 
+    await _ejecutarMultiJoin(setSheetState, roundTrip);
+  }
+
+  // multi join
+  Future<void> _ejecutarMultiJoin(
+    StateSetter setSheetState,
+    bool roundTrip,
+  ) async {
     setSheetState(() => isLoading = true);
     try {
       final result = await ApiService.joinMultipleRoutes(
         _seleccionadas.toList(),
         _miId,
-        false,
+        roundTrip,
       );
 
       if (!mounted) return;
@@ -202,9 +385,7 @@ class _SearchRouteScreenState extends State<SearchRouteScreen> {
               ],
             ),
             content: const Text(
-              "No tienes saldo suficiente para unirte a las rutas seleccionadas. "
-              "¿Quieres añadir saldo ahora?",
-              style: TextStyle(fontSize: 15),
+              "No tienes saldo suficiente. ¿Quieres añadir saldo ahora?",
             ),
             actions: [
               TextButton(
@@ -212,6 +393,7 @@ class _SearchRouteScreenState extends State<SearchRouteScreen> {
                 child: const Text("Cancelar"),
               ),
               ElevatedButton(
+                style: ElevatedButton.styleFrom(backgroundColor: kPrimary),
                 onPressed: () {
                   Navigator.pop(context);
                   Navigator.push(
@@ -221,9 +403,6 @@ class _SearchRouteScreenState extends State<SearchRouteScreen> {
                     ),
                   );
                 },
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xFF5F2C82),
-                ),
                 child: const Text(
                   "Gestionar saldo",
                   style: TextStyle(color: Colors.white),
@@ -250,7 +429,7 @@ class _SearchRouteScreenState extends State<SearchRouteScreen> {
     }
 
     final rutasVisibles = rutasEncontradas
-        .where((r) => r['status'] != 'COMPLETED')
+        .where((r) => r['status'] != 'COMPLETED' && r['status'] != 'CANCELLED')
         .toList();
 
     showModalBottomSheet(
@@ -584,7 +763,7 @@ class _SearchRouteScreenState extends State<SearchRouteScreen> {
                         child: ElevatedButton(
                           onPressed: isLoading
                               ? null
-                              : () => _unirseASeleccionadas(setSheetState),
+                              : () => _mostrarModalMultiJoin(setSheetState),
                           style: ElevatedButton.styleFrom(
                             backgroundColor: Color(0xFF5F2C82),
                             padding: EdgeInsets.symmetric(vertical: 16),

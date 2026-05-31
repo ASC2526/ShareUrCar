@@ -269,9 +269,17 @@ public class RouteService {
                 .forEach(p -> {
                     user.setHeldBalance(Math.max(0, held(user) - p.getAmount()));
                     userRepository.save(user);
-                    p.setPaymentType("REFUND");
-                    p.setPaymentStatus("REFUNDED");
+                    p.setPaymentStatus("CANCELLED");
                     paymentRepository.save(p);
+
+                    Payment refund = new Payment();
+                    refund.setIdUser(userId);
+                    refund.setIdGroup(p.getIdGroup());
+                    refund.setAmount(p.getAmount());
+                    refund.setPaymentStatus("COMPLETED");
+                    refund.setPaymentType("REFUND");
+                    refund.setCreatedAt(LocalDateTime.now());
+                    paymentRepository.save(refund);
                 });
 
         route.getPassengers().remove(user);
@@ -492,14 +500,6 @@ public class RouteService {
                 .toList();
     }
 
-    // devolver saldos antes de cancelar
-    public void refundAndCancel(Integer routeId) {
-        refundPendingPayments(routeId);
-        routeRepository.findById(routeId).ifPresent(r -> {
-            r.setStatus("CANCELLED");
-            routeRepository.save(r);
-        });
-    }
 
     // crear grupo + pago para un pasajero nuevo
     private void joinSingleRouteInternal(Route route, User user, boolean roundTrip) {

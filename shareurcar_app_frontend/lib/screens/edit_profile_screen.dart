@@ -1,6 +1,8 @@
+import 'dart:convert';
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
+import '../app_theme.dart';
 import '../services/api_service.dart';
 
 class EditProfileScreen extends StatefulWidget {
@@ -14,7 +16,7 @@ class EditProfileScreen extends StatefulWidget {
 class _EditProfileScreenState extends State<EditProfileScreen> {
   bool _isLoading = false;
   File? _imageFile;
-  final ImagePicker _picker = ImagePicker();
+  final _picker = ImagePicker();
 
   final _nameController = TextEditingController();
   final _phoneController = TextEditingController();
@@ -27,57 +29,77 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
   @override
   void initState() {
     super.initState();
-    _nameController.text =
-        "${widget.user['firstname'] ?? ''} ${widget.user['lastname'] ?? ''}";
-    _phoneController.text = widget.user['phone'] ?? '';
-    _emailController.text = widget.user['email'] ?? '';
-    _aboutController.text = widget.user['aboutMe'] ?? '';
-    _modelController.text = widget.user['carModel'] ?? '';
-    _colorController.text = widget.user['carColor'] ?? '';
-    _plateController.text = widget.user['carPlate'] ?? '';
+    final u = widget.user;
+    _nameController.text = "${u['firstname'] ?? ''} ${u['lastname'] ?? ''}"
+        .trim();
+    _phoneController.text = u['phone'] ?? '';
+    _emailController.text = u['email'] ?? '';
+    _aboutController.text = u['aboutMe'] ?? '';
+    _modelController.text = u['carModel'] ?? '';
+    _colorController.text = u['carColor'] ?? '';
+    _plateController.text = u['carPlate'] ?? '';
+  }
+
+  @override
+  void dispose() {
+    _nameController.dispose();
+    _phoneController.dispose();
+    _emailController.dispose();
+    _aboutController.dispose();
+    _modelController.dispose();
+    _colorController.dispose();
+    _plateController.dispose();
+    super.dispose();
   }
 
   Future<void> _pickImage() async {
-    final pickedFile = await _picker.pickImage(
+    final picked = await _picker.pickImage(
       source: ImageSource.gallery,
-      imageQuality: 80,
+      imageQuality: 70,
+      maxWidth: 800,
     );
-    if (pickedFile != null) {
-      setState(() => _imageFile = File(pickedFile.path));
+    if (picked != null) {
+      setState(() => _imageFile = File(picked.path));
     }
   }
 
   Future<void> _saveProfile() async {
     setState(() => _isLoading = true);
-
     try {
-      final userId =
-          widget.user['idUser'] ?? widget.user['id_user'] ?? widget.user['id'];
-
-      final updatedData = {
-        "firstname": _nameController.text.split(' ').first,
-        "lastname": _nameController.text.split(' ').length > 1
-            ? _nameController.text.split(' ').sublist(1).join(' ')
-            : "",
-        "phone": _phoneController.text,
-        "email": _emailController.text,
-        "aboutMe": _aboutController.text,
-        "carModel": _modelController.text,
-        "carColor": _colorController.text,
-        "carPlate": _plateController.text,
-      };
-
-      await ApiService.updateUserProfile(
-        updatedData,
-        int.parse(userId.toString()),
+      final userId = int.parse(
+        (widget.user['idUser'] ?? widget.user['id_user'] ?? widget.user['id'])
+            .toString(),
       );
+
+      // subir foto
+      if (_imageFile != null) {
+        final bytes = await _imageFile!.readAsBytes();
+        final base64Photo = "data:image/jpeg;base64,${base64Encode(bytes)}";
+        await ApiService.uploadPhoto(userId, base64Photo);
+      }
+
+      // guardar datos perfil
+      final parts = _nameController.text.trim().split(' ');
+      await ApiService.updateUserProfile({
+        "firstname": parts.first,
+        "lastname": parts.length > 1 ? parts.sublist(1).join(' ') : "",
+        "phone": _phoneController.text.trim(),
+        "email": _emailController.text.trim(),
+        "aboutMe": _aboutController.text.trim(),
+        "carModel": _modelController.text.trim(),
+        "carColor": _colorController.text.trim(),
+        "carPlate": _plateController.text.trim(),
+      }, userId);
+
       if (!mounted) return;
       Navigator.pop(context, true);
     } catch (e) {
       if (!mounted) return;
-      String error = e.toString().replaceAll("Exception: ", "");
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(error), backgroundColor: Colors.red),
+        SnackBar(
+          content: Text(e.toString().replaceAll("Exception: ", "")),
+          backgroundColor: Colors.red,
+        ),
       );
     } finally {
       if (mounted) setState(() => _isLoading = false);
@@ -86,10 +108,18 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final String? fotoUrl = widget.user['profile_photo'];
+    ImageProvider? bgImage;
+    if (_imageFile != null) {
+      bgImage = FileImage(_imageFile!);
+    } else if (fotoUrl != null && fotoUrl.isNotEmpty) {
+      bgImage = NetworkImage(fotoUrl);
+    }
+
     return Scaffold(
       backgroundColor: Colors.white,
       appBar: AppBar(
-        title: Text(
+        title: const Text(
           "Editar perfil",
           style: TextStyle(color: Colors.black, fontWeight: FontWeight.bold),
         ),
@@ -98,18 +128,25 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
         leading: BackButton(color: Colors.black),
         actions: [
           _isLoading
-              ? Padding(
+              ? const Padding(
                   padding: EdgeInsets.only(right: 20),
                   child: Center(
-                    child: CircularProgressIndicator(color: Colors.black),
+                    child: SizedBox(
+                      width: 20,
+                      height: 20,
+                      child: CircularProgressIndicator(
+                        color: Colors.black,
+                        strokeWidth: 2,
+                      ),
+                    ),
                   ),
                 )
               : TextButton(
                   onPressed: _saveProfile,
-                  child: Text(
+                  child: const Text(
                     "Guardar",
                     style: TextStyle(
-                      color: Color(0xFF5F2C82),
+                      color: kPrimary,
                       fontWeight: FontWeight.bold,
                     ),
                   ),
@@ -117,7 +154,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
         ],
       ),
       body: SingleChildScrollView(
-        padding: EdgeInsets.all(20),
+        padding: const EdgeInsets.all(20),
         child: Column(
           children: [
             GestureDetector(
@@ -125,46 +162,44 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
               child: CircleAvatar(
                 radius: 50,
                 backgroundColor: Colors.grey.shade200,
-                backgroundImage: _imageFile != null
-                    ? FileImage(_imageFile!)
-                    : (widget.user['photoUrl'] != null
-                              ? NetworkImage(widget.user['photoUrl'])
-                              : null)
-                          as ImageProvider?,
-                child: _imageFile == null && widget.user['photoUrl'] == null
-                    ? Icon(Icons.camera_alt, size: 40, color: Colors.grey)
+                backgroundImage: bgImage,
+                child: bgImage == null
+                    ? const Icon(Icons.camera_alt, size: 40, color: Colors.grey)
                     : null,
               ),
             ),
             TextButton(
               onPressed: _pickImage,
-              child: Text(
+              child: const Text(
                 "Cambiar foto",
-                style: TextStyle(color: Color(0xFF5F2C82)),
+                style: TextStyle(color: kPrimary),
               ),
             ),
-            SizedBox(height: 20),
-            _buildField("Nombre completo", _nameController),
-            _buildField("Teléfono", _phoneController, isNumber: true),
-            _buildField("Email", _emailController),
-            _buildField("Sobre mí", _aboutController, maxLines: 3),
-            Divider(height: 40),
 
+            const SizedBox(height: 20),
+
+            // campos texto
+            _field("Nombre completo", _nameController),
+            _field("Teléfono", _phoneController, isNumber: true),
+            _field("Email", _emailController),
+            _field("Sobre mí", _aboutController, maxLines: 3),
+
+            const Divider(height: 40),
+
+            // vehículo
             if (widget.user['carPlate'] != null) ...[
               Align(
                 alignment: Alignment.centerLeft,
-                child: Text(
+                child: const Text(
                   "Vehículo",
                   style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
                 ),
               ),
-
-              SizedBox(height: 15),
-
-              _buildField("Modelo", _modelController),
-              _buildField("Color", _colorController),
-              _buildField("Matrícula", _plateController),
-            ] else ...[
+              const SizedBox(height: 15),
+              _field("Modelo", _modelController),
+              _field("Color", _colorController),
+              _field("Matrícula", _plateController),
+            ] else
               Container(
                 width: double.infinity,
                 padding: const EdgeInsets.all(16),
@@ -172,23 +207,15 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                   color: Colors.grey.shade100,
                   borderRadius: BorderRadius.circular(12),
                 ),
-                child: Column(
-                  children: const [
-                    Icon(
-                      Icons.directions_car,
-                      size: 40,
-                      color: Color(0xFF5F2C82),
-                    ),
-
+                child: const Column(
+                  children: [
+                    Icon(Icons.directions_car, size: 40, color: kPrimary),
                     SizedBox(height: 10),
-
                     Text(
                       "No tienes vehículo registrado",
                       style: TextStyle(fontWeight: FontWeight.bold),
                     ),
-
                     SizedBox(height: 8),
-
                     Text(
                       "Para registrar un vehículo debes crear una ruta por primera vez.",
                       textAlign: TextAlign.center,
@@ -196,16 +223,15 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                   ],
                 ),
               ),
-            ],
           ],
         ),
       ),
     );
   }
 
-  Widget _buildField(
+  Widget _field(
     String label,
-    TextEditingController controller, {
+    TextEditingController ctrl, {
     bool isNumber = false,
     int maxLines = 1,
   }) {
@@ -222,15 +248,15 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
               color: Colors.grey.shade600,
             ),
           ),
-          SizedBox(height: 8),
+          const SizedBox(height: 8),
           TextFormField(
-            controller: controller,
+            controller: ctrl,
             maxLines: maxLines,
             keyboardType: isNumber ? TextInputType.phone : TextInputType.text,
             decoration: InputDecoration(
               filled: true,
               fillColor: Colors.grey.shade100,
-              contentPadding: EdgeInsets.symmetric(
+              contentPadding: const EdgeInsets.symmetric(
                 horizontal: 15,
                 vertical: 12,
               ),

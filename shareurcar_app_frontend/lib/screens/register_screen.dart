@@ -1,5 +1,5 @@
 import 'dart:async';
-
+import '../app_theme.dart';
 import 'package:flutter/material.dart';
 import '../services/api_service.dart';
 
@@ -58,7 +58,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
       });
     } catch (e) {
       if (!mounted) return;
-      showError(e.toString());
+      showError(e.toString().replaceAll("Exception: ", ""));
     }
   }
 
@@ -76,7 +76,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
         padding: EdgeInsets.all(20),
         decoration: BoxDecoration(
           gradient: LinearGradient(
-            colors: [Color(0xFF5F2C82), Color(0xFF49A09D)],
+            colors: [kPrimary, kSecondary],
             begin: Alignment.topCenter,
             end: Alignment.bottomCenter,
           ),
@@ -172,7 +172,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                             leading: Icon(
                               Icons.account_balance,
                               size: 18,
-                              color: Color(0xFF5F2C82),
+                              color: kPrimary,
                             ),
                             title: Text(
                               centerSuggestions[idx]['name'],

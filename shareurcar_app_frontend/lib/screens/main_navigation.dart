@@ -3,11 +3,11 @@ import 'package:shareurcar_app_frontend/screens/chat_screens.dart';
 import 'package:shareurcar_app_frontend/screens/payments_screen.dart';
 import 'package:shareurcar_app_frontend/screens/profile_screen.dart';
 import 'package:shareurcar_app_frontend/services/api_service.dart';
+import '../app_theme.dart';
 import 'home_screen.dart';
 
 class MainNavigation extends StatefulWidget {
   final Map user;
-
   const MainNavigation({super.key, required this.user});
 
   @override
@@ -15,39 +15,48 @@ class MainNavigation extends StatefulWidget {
 }
 
 class _MainNavigationState extends State<MainNavigation> {
-  int currentIndex = 0;
-  late Map currentUser;
+  int _index = 0;
+  late Map _user;
+  int _chatsRefresh = 0;
 
   @override
   void initState() {
     super.initState();
-    currentUser = widget.user;
+    _user = widget.user;
     _refreshUser();
+  }
+
+  Future<void> _refreshUser() async {
+    try {
+      final updated = await ApiService.getUserById(_user['idUser']);
+      if (mounted) setState(() => _user = updated);
+    } catch (e) {
+      debugPrint("Error refrescando usuario: $e");
+    }
   }
 
   @override
   Widget build(BuildContext context) {
     final screens = [
-      HomeScreen(user: currentUser),
-      ChatsScreen(user: currentUser),
-      PaymentsScreen(user: currentUser),
-      ProfileScreen(user: currentUser),
+      HomeScreen(user: _user),
+      ChatsScreen(user: _user, refreshTrigger: _chatsRefresh),
+      PaymentsScreen(user: _user),
+      ProfileScreen(user: _user, onUserUpdated: _refreshUser),
     ];
 
     return Scaffold(
-      body: screens[currentIndex],
+      body: IndexedStack(index: _index, children: screens),
       bottomNavigationBar: BottomNavigationBar(
-        currentIndex: currentIndex,
-        onTap: (index) async {
+        currentIndex: _index,
+        onTap: (i) async {
+          if (i == 1) setState(() => _chatsRefresh++);
           await _refreshUser();
-
-          setState(() {
-            currentIndex = index;
-          });
+          if (mounted) setState(() => _index = i);
         },
-        selectedItemColor: Colors.blue,
+        selectedItemColor: kPrimary,
         unselectedItemColor: Colors.grey,
-        items: [
+        type: BottomNavigationBarType.fixed,
+        items: const [
           BottomNavigationBarItem(icon: Icon(Icons.home), label: "Viajes"),
           BottomNavigationBarItem(icon: Icon(Icons.chat), label: "Chats"),
           BottomNavigationBarItem(icon: Icon(Icons.payment), label: "Pagos"),
@@ -55,19 +64,5 @@ class _MainNavigationState extends State<MainNavigation> {
         ],
       ),
     );
-  }
-
-  Future<void> _refreshUser() async {
-    try {
-      final updatedUser = await ApiService.getUserById(currentUser['idUser']);
-
-      if (mounted) {
-        setState(() {
-          currentUser = updatedUser;
-        });
-      }
-    } catch (e) {
-      print("Error refrescando usuario: $e");
-    }
   }
 }

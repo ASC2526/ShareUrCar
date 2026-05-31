@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:shareurcar_app_frontend/screens/group_members_screen.dart';
 import '../services/api_service.dart';
@@ -19,6 +20,7 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
   final TextEditingController messageController = TextEditingController();
   final ScrollController _scrollController = ScrollController();
   int totalParticipantes = 0;
+  Timer? _pollingTimer;
 
   @override
   void initState() {
@@ -28,6 +30,7 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
 
   @override
   void dispose() {
+    _pollingTimer?.cancel();
     messageController.dispose();
     _scrollController.dispose();
     super.dispose();
@@ -39,20 +42,21 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
           widget.ruta['idRoute'] ??
           widget.ruta['id_route'] ??
           widget.ruta['id'];
-
-      if (routeId == null) {
-        throw Exception("No se encontró el ID de la ruta");
-      }
+      if (routeId == null) throw Exception("No se encontró el ID de la ruta");
 
       final result = await ApiService.getGroupIdByRoute(
         int.parse(routeId.toString()),
       );
 
-      if (mounted) {
-        setState(() => groupId = result);
-      }
+      if (mounted) setState(() => groupId = result);
+
       await fetchMessages();
       await loadMembersCount();
+
+      // polling cada 5 segundos
+      _pollingTimer = Timer.periodic(const Duration(seconds: 5), (_) {
+        if (mounted && groupId != null) _fetchMessagesSilent();
+      });
     } catch (e) {
       if (mounted) {
         setState(() => isLoading = false);
@@ -75,27 +79,36 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
           messages = data;
           isLoading = false;
         });
-        WidgetsBinding.instance.addPostFrameCallback((_) {
-          if (_scrollController.hasClients) {
-            _scrollController.animateTo(
-              _scrollController.position.maxScrollExtent,
-              duration: const Duration(milliseconds: 300),
-              curve: Curves.easeOut,
-            );
-          }
-        });
+        _scrollToBottom();
       }
     } catch (e) {
-      if (mounted) {
-        setState(() => isLoading = false);
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text("Error cargando mensajes"),
-            backgroundColor: Colors.red,
-          ),
+      if (mounted) setState(() => isLoading = false);
+    }
+  }
+
+  // polling
+  Future<void> _fetchMessagesSilent() async {
+    if (groupId == null) return;
+    try {
+      final data = await ApiService.getGroupMessages(groupId!);
+      if (!mounted) return;
+      if (data.length != messages.length) {
+        setState(() => messages = data);
+        _scrollToBottom();
+      }
+    } catch (_) {}
+  }
+
+  void _scrollToBottom() {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (_scrollController.hasClients) {
+        _scrollController.animateTo(
+          _scrollController.position.maxScrollExtent,
+          duration: const Duration(milliseconds: 300),
+          curve: Curves.easeOut,
         );
       }
-    }
+    });
   }
 
   void sendMessage() async {
@@ -103,7 +116,6 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
     if (text.isEmpty || groupId == null) return;
 
     final userId = widget.user['idUser'] ?? widget.user['id_user'];
-
     messageController.clear();
 
     try {
@@ -126,12 +138,7 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
   }
 
   void _abrirIntegrantes() {
-    if (groupId == null) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(const SnackBar(content: Text("Cargando integrantes...")));
-      return;
-    }
+    if (groupId == null) return;
     Navigator.push(
       context,
       MaterialPageRoute(
@@ -143,14 +150,10 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
 
   Future<void> loadMembersCount() async {
     if (groupId == null) return;
-
-    final members = await ApiService.getGroupMembers(groupId!);
-
-    if (mounted) {
-      setState(() {
-        totalParticipantes = members.length;
-      });
-    }
+    try {
+      final members = await ApiService.getGroupMembers(groupId!);
+      if (mounted) setState(() => totalParticipantes = members.length);
+    } catch (_) {}
   }
 
   @override
@@ -160,7 +163,6 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
 
     return Scaffold(
       backgroundColor: const Color(0xFFF0EBF8),
-
       appBar: AppBar(
         flexibleSpace: Container(
           decoration: const BoxDecoration(
@@ -202,7 +204,6 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
           ),
         ],
       ),
-
       body: Column(
         children: [
           Expanded(
@@ -243,7 +244,6 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
                     },
                   ),
           ),
-
           _buildInputBar(),
         ],
       ),
@@ -277,7 +277,7 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
           ),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withOpacity(0.06),
+              color: Colors.black.withValues(),
               blurRadius: 6,
               offset: const Offset(0, 3),
             ),

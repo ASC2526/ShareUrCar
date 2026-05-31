@@ -97,8 +97,6 @@ public class NotificationService {
             throw new RuntimeException("La ruta ya está cancelada");
         }
 
-        routeService.refundAndCancel(routeId);
-
         boolean esConductor = route.getIdDriver().equals(reporterId);
         notificarIncidencia(routeId, reporterId, esConductor);
     }

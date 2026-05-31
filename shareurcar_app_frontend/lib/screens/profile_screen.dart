@@ -5,8 +5,9 @@ import '../services/api_service.dart';
 
 class ProfileScreen extends StatefulWidget {
   final Map user;
+  final VoidCallback? onUserUpdated;
 
-  const ProfileScreen({super.key, required this.user});
+  const ProfileScreen({super.key, required this.user, this.onUserUpdated});
 
   @override
   _ProfileScreenState createState() => _ProfileScreenState();
@@ -150,6 +151,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 );
                 if (recargar == true) {
                   await _refreshUserData();
+                  widget.onUserUpdated?.call();
                 }
               },
               icon: Icon(Icons.edit, size: 16, color: Colors.white),

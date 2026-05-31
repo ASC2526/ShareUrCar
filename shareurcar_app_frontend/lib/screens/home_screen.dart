@@ -22,6 +22,15 @@ class _HomeScreenState extends State<HomeScreen> {
   bool isLoading = true;
   late Map currentUser;
   int _unreadNotifications = 0;
+  final Set<int> _rutasOcultadas = {};
+
+  @override
+  void didUpdateWidget(covariant HomeScreen oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.user != widget.user) {
+      currentUser = widget.user;
+    }
+  }
 
   @override
   void initState() {
@@ -125,9 +134,14 @@ class _HomeScreenState extends State<HomeScreen> {
   Widget build(BuildContext context) {
     final String? fotoUrl = currentUser['profile_photo'];
     final String nombreUsuario = currentUser['firstname'] ?? 'Usuario';
-    final rutasFiltradas = dynamicRoutes
-        .where((r) => r['status'] != 'COMPLETED')
-        .toList();
+    final rutasFiltradas = dynamicRoutes.where((r) {
+      if (r['status'] == 'COMPLETED') return false;
+      final rid = int.tryParse(
+        (r['idRoute'] ?? r['id_route'] ?? r['id'] ?? 0).toString(),
+      );
+      if (rid != null && _rutasOcultadas.contains(rid)) return false;
+      return true;
+    }).toList();
     final rutasSemana = _filtrarRutasSemana(rutasFiltradas);
 
     return Scaffold(
@@ -541,167 +555,220 @@ class _HomeScreenState extends State<HomeScreen> {
     final int plazasDisponibles = (ruta['available_seats'] ?? 0) as int;
     final int plazasTotales = plazasOcupadas + plazasDisponibles;
 
-    return Container(
-      margin: const EdgeInsets.only(bottom: 15),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: Colors.grey.shade200),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.grey.shade100,
-            blurRadius: 10,
-            spreadRadius: 1,
-            offset: const Offset(0, 4),
-          ),
-        ],
-      ),
-      child: Material(
-        color: Colors.transparent,
-        child: InkWell(
-          borderRadius: BorderRadius.circular(16),
-          onTap: () async {
-            final actualiza = await Navigator.push(
-              context,
-              MaterialPageRoute(
-                builder: (_) => ActiveTripScreen(ruta: ruta, user: currentUser),
-              ),
-            );
-            await _refreshUser();
-            if (actualiza == true) fetchMyRoutes();
-          },
-          child: Padding(
-            padding: const EdgeInsets.all(16),
-            child: Column(
-              children: [
-                // Destino + hora + fecha
-                Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Container(
-                      padding: const EdgeInsets.all(8),
-                      decoration: BoxDecoration(
-                        color: Colors.blue.shade50,
-                        shape: BoxShape.circle,
-                      ),
-                      child: Icon(
-                        Icons.location_on,
-                        color: Colors.blue.shade600,
-                        size: 20,
-                      ),
-                    ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            destino,
-                            style: const TextStyle(
-                              fontSize: 16,
-                              fontWeight: FontWeight.bold,
-                              color: Colors.black87,
-                            ),
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                          ),
+    final bool estaCancelada = ruta['status'] == 'CANCELLED';
+    final int? rid = int.tryParse(
+      (ruta['idRoute'] ?? ruta['id_route'] ?? ruta['id'] ?? 0).toString(),
+    );
 
-                          const SizedBox(height: 4),
-
-                          Row(
-                            children: [
-                              Icon(
-                                Icons.access_time,
-                                size: 14,
-                                color: Colors.grey.shade600,
-                              ),
-                              const SizedBox(width: 4),
-                              Expanded(
-                                child: Text(
-                                  horaVuelta != null
-                                      ? "Salida: $hora · Vuelta: $horaVuelta"
-                                      : "Salida: $hora",
-                                  style: TextStyle(
-                                    color: Colors.grey.shade600,
-                                    fontSize: 14,
-                                  ),
-                                  maxLines: 1,
-                                  overflow: TextOverflow.ellipsis,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ],
-                      ),
+    return GestureDetector(
+      onLongPress: estaCancelada && rid != null
+          ? () async {
+              final ok = await showDialog<bool>(
+                context: context,
+                builder: (_) => AlertDialog(
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(16),
+                  ),
+                  title: const Row(
+                    children: [
+                      Icon(Icons.delete_outline, color: Colors.red),
+                      SizedBox(width: 10),
+                      Text("Quitar de la lista"),
+                    ],
+                  ),
+                  content: const Text(
+                    "¿Quieres quitar esta ruta cancelada de tu lista? "
+                    "El chat seguirá disponible en el historial.",
+                  ),
+                  actions: [
+                    TextButton(
+                      onPressed: () => Navigator.pop(context, false),
+                      child: const Text("Cancelar"),
                     ),
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 12,
-                        vertical: 6,
-                      ),
-                      decoration: BoxDecoration(
-                        color: const Color(0xFFE8EAF6),
-                        borderRadius: BorderRadius.circular(20),
-                      ),
-                      child: Text(
-                        fechaRelativa,
-                        style: TextStyle(
-                          color: Colors.grey.shade600,
-                          fontSize: 13,
-                          fontWeight: FontWeight.w500,
+                    ElevatedButton(
+                      onPressed: () => Navigator.pop(context, true),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.red,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(10),
                         ),
+                      ),
+                      child: const Text(
+                        "Quitar",
+                        style: TextStyle(color: Colors.white),
                       ),
                     ),
                   ],
                 ),
-
-                const SizedBox(height: 15),
-                Divider(color: Colors.grey.shade200, height: 1),
-                const SizedBox(height: 15),
-
-                // Conductor + plazas
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Row(
-                      children: [
-                        Icon(
-                          Icons.person_outline,
-                          size: 18,
-                          color: Colors.grey.shade600,
+              );
+              if (ok == true && mounted) {
+                setState(() => _rutasOcultadas.add(rid));
+              }
+            }
+          : null,
+      child: Container(
+        margin: const EdgeInsets.only(bottom: 15),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: Colors.grey.shade200),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.grey.shade100,
+              blurRadius: 10,
+              spreadRadius: 1,
+              offset: const Offset(0, 4),
+            ),
+          ],
+        ),
+        child: Material(
+          color: Colors.transparent,
+          child: InkWell(
+            borderRadius: BorderRadius.circular(16),
+            onTap: () async {
+              final actualiza = await Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (_) =>
+                      ActiveTripScreen(ruta: ruta, user: currentUser),
+                ),
+              );
+              await _refreshUser();
+              if (actualiza == true) fetchMyRoutes();
+            },
+            child: Padding(
+              padding: const EdgeInsets.all(16),
+              child: Column(
+                children: [
+                  // Destino + hora + fecha
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.all(8),
+                        decoration: BoxDecoration(
+                          color: Colors.blue.shade50,
+                          shape: BoxShape.circle,
                         ),
-                        const SizedBox(width: 8),
-                        Text(
-                          driverName,
+                        child: Icon(
+                          Icons.location_on,
+                          color: Colors.blue.shade600,
+                          size: 20,
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              destino,
+                              style: const TextStyle(
+                                fontSize: 16,
+                                fontWeight: FontWeight.bold,
+                                color: Colors.black87,
+                              ),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+
+                            const SizedBox(height: 4),
+
+                            Row(
+                              children: [
+                                Icon(
+                                  Icons.access_time,
+                                  size: 14,
+                                  color: Colors.grey.shade600,
+                                ),
+                                const SizedBox(width: 4),
+                                Expanded(
+                                  child: Text(
+                                    horaVuelta != null
+                                        ? "Salida: $hora · Vuelta: $horaVuelta"
+                                        : "Salida: $hora",
+                                    style: TextStyle(
+                                      color: Colors.grey.shade600,
+                                      fontSize: 14,
+                                    ),
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ],
+                        ),
+                      ),
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 12,
+                          vertical: 6,
+                        ),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFE8EAF6),
+                          borderRadius: BorderRadius.circular(20),
+                        ),
+                        child: Text(
+                          fechaRelativa,
                           style: TextStyle(
-                            color: Colors.grey.shade700,
-                            fontSize: 14,
+                            color: Colors.grey.shade600,
+                            fontSize: 13,
                             fontWeight: FontWeight.w500,
                           ),
                         ),
-                      ],
-                    ),
-                    Row(
-                      children: [
-                        const Icon(
-                          Icons.group_outlined,
-                          size: 18,
-                          color: Color(0xFF5F2C82),
-                        ),
-                        const SizedBox(width: 4),
-                        Text(
-                          "$plazasOcupadas/$plazasTotales",
-                          style: const TextStyle(
-                            color: Color(0xFF5F2C82),
-                            fontWeight: FontWeight.bold,
-                            fontSize: 14,
+                      ),
+                    ],
+                  ),
+
+                  const SizedBox(height: 15),
+                  Divider(color: Colors.grey.shade200, height: 1),
+                  const SizedBox(height: 15),
+
+                  // Conductor + plazas
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Row(
+                        children: [
+                          Icon(
+                            Icons.person_outline,
+                            size: 18,
+                            color: Colors.grey.shade600,
                           ),
-                        ),
-                      ],
-                    ),
-                  ],
-                ),
-              ],
+                          const SizedBox(width: 8),
+                          Text(
+                            driverName,
+                            style: TextStyle(
+                              color: Colors.grey.shade700,
+                              fontSize: 14,
+                              fontWeight: FontWeight.w500,
+                            ),
+                          ),
+                        ],
+                      ),
+                      Row(
+                        children: [
+                          const Icon(
+                            Icons.group_outlined,
+                            size: 18,
+                            color: Color(0xFF5F2C82),
+                          ),
+                          const SizedBox(width: 4),
+                          Text(
+                            "$plazasOcupadas/$plazasTotales",
+                            style: const TextStyle(
+                              color: Color(0xFF5F2C82),
+                              fontWeight: FontWeight.bold,
+                              fontSize: 14,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                ],
+              ),
             ),
           ),
         ),

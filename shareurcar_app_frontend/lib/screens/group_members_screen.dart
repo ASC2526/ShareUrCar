@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:shareurcar_app_frontend/screens/public_profile_screen.dart';
+import '../app_theme.dart';
 import '../services/api_service.dart';
 
 class GroupMembersScreen extends StatefulWidget {
@@ -79,7 +80,7 @@ class _GroupMembersScreenState extends State<GroupMembersScreen> {
 
             CircleAvatar(
               radius: 28,
-              backgroundColor: const Color(0xFF5F2C82).withOpacity(0.1),
+              backgroundColor: kPrimary.withOpacity(0.1),
               backgroundImage: miembro['profilePhoto'] != null
                   ? NetworkImage(miembro['profilePhoto'])
                   : null,
@@ -293,9 +294,7 @@ class _GroupMembersScreenState extends State<GroupMembersScreen> {
         centerTitle: true,
       ),
       body: isLoading
-          ? const Center(
-              child: CircularProgressIndicator(color: Color(0xFF5F2C82)),
-            )
+          ? const Center(child: CircularProgressIndicator(color: kPrimary))
           : members.isEmpty
           ? Center(
               child: Text(

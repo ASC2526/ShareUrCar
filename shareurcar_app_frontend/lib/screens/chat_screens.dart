@@ -5,8 +5,9 @@ import '../services/api_service.dart';
 
 class ChatsScreen extends StatefulWidget {
   final Map user;
+  final int refreshTrigger;
 
-  const ChatsScreen({super.key, required this.user});
+  const ChatsScreen({super.key, required this.user, this.refreshTrigger = 0});
 
   @override
   State<ChatsScreen> createState() => _ChatsScreenState();
@@ -20,6 +21,15 @@ class _ChatsScreenState extends State<ChatsScreen> {
   void initState() {
     super.initState();
     fetchChats();
+  }
+
+  @override
+  void didUpdateWidget(covariant ChatsScreen oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.refreshTrigger != widget.refreshTrigger ||
+        oldWidget.user != widget.user) {
+      fetchChats();
+    }
   }
 
   void fetchChats() async {

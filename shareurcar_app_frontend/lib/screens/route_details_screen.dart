@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart';
 import 'package:shareurcar_app_frontend/screens/payments_screen.dart';
+import '../widgets/preferences_card.dart';
+
 import '../services/api_service.dart';
 
 class RouteDetailsScreen extends StatefulWidget {
@@ -956,38 +958,7 @@ class _RouteDetailsScreenState extends State<RouteDetailsScreen> {
                             ],
                           ),
                         ),
-                        CheckboxListTile(
-                          value:
-                              widget.ruta['prefNoTalk'] ??
-                              widget.ruta['pref_no_talk'] ??
-                              false,
-                          onChanged: null,
-                          title: const Text("😶 Viaje sin conversar"),
-                        ),
-                        CheckboxListTile(
-                          value:
-                              widget.ruta['prefLuggage'] ??
-                              widget.ruta['pref_luggage'] ??
-                              false,
-                          onChanged: null,
-                          title: const Text("💼 Equipaje permitido"),
-                        ),
-                        CheckboxListTile(
-                          value:
-                              widget.ruta['prefMusic'] ??
-                              widget.ruta['pref_music'] ??
-                              false,
-                          onChanged: null,
-                          title: const Text("🎵 Música durante el viaje"),
-                        ),
-                        CheckboxListTile(
-                          value:
-                              widget.ruta['prefSmoke'] ??
-                              widget.ruta['pref_smoke'] ??
-                              false,
-                          onChanged: null,
-                          title: const Text("🚬 Fumar permitido"),
-                        ),
+                        PreferenciasCard(ruta: widget.ruta),
                       ],
                     ),
                   ),

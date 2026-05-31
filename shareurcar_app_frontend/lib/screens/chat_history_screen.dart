@@ -35,7 +35,11 @@ class _ChatHistoryScreenState extends State<ChatHistoryScreen> {
         final destino = (c['destination'] ?? '').toString().toLowerCase();
         final origin = (c['origin'] ?? '').toString().toLowerCase();
         final driver = (c['driverName'] ?? '').toString().toLowerCase();
-        return destino.contains(q) || origin.contains(q) || driver.contains(q);
+        final fecha = (c['travel_date'] ?? '').toString().toLowerCase();
+        return destino.contains(q) ||
+            origin.contains(q) ||
+            driver.contains(q) ||
+            fecha.contains(q);
       }).toList();
     }
 
@@ -352,18 +356,18 @@ class _ChatHistoryScreenState extends State<ChatHistoryScreen> {
                             ),
                           ),
                           Container(
-                            padding: EdgeInsets.symmetric(
+                            padding: const EdgeInsets.symmetric(
                               horizontal: 8,
                               vertical: 3,
                             ),
                             decoration: BoxDecoration(
-                              color: colorEstado.withValues(),
+                              color: colorEstado,
                               borderRadius: BorderRadius.circular(10),
                             ),
                             child: Text(
                               completado ? "Completado" : fechaRelativa,
-                              style: TextStyle(
-                                color: colorEstado,
+                              style: const TextStyle(
+                                color: Colors.white,
                                 fontSize: 11,
                                 fontWeight: FontWeight.bold,
                               ),
