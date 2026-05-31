@@ -683,10 +683,11 @@ class _CreateRouteScreenState extends State<CreateRouteScreen> {
                                             Duration(days: 90),
                                           ),
                                         );
-                                    if (picked != null)
+                                    if (picked != null) {
                                       setState(
                                         () => fechaInicioSemanal = picked,
                                       );
+                                    }
                                   },
                                   child: Container(
                                     padding: EdgeInsets.all(12),
@@ -737,8 +738,9 @@ class _CreateRouteScreenState extends State<CreateRouteScreen> {
                                         Duration(days: 90),
                                       ),
                                     );
-                                    if (picked != null)
+                                    if (picked != null) {
                                       setState(() => fechaFinSemanal = picked);
+                                    }
                                   },
                                   child: Container(
                                     padding: EdgeInsets.all(12),

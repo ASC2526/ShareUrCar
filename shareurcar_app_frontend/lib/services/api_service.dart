@@ -3,11 +3,10 @@ import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:http/http.dart' as http;
 
 class ApiService {
-  static const String baseUrl = "http://10.0.2.2:8080"; // Android emulator
+  static const String baseUrl = "http://10.0.2.2:8080";
 
   static Future<List<dynamic>> getUsers() async {
     final response = await http.get(Uri.parse("$baseUrl/users"));
-
     if (response.statusCode == 200) {
       return json.decode(response.body);
     } else {
@@ -21,7 +20,6 @@ class ApiService {
       headers: {"Content-Type": "application/json"},
       body: json.encode(user),
     );
-
     if (response.statusCode != 201) {
       throw Exception("Error al crear usuario");
     }
@@ -33,7 +31,6 @@ class ApiService {
       headers: {'Content-Type': 'application/json'},
       body: jsonEncode({'email': email, 'password': password}),
     );
-
     if (response.statusCode == 200) {
       return jsonDecode(response.body);
     } else {
@@ -47,7 +44,6 @@ class ApiService {
       headers: {'Content-Type': 'application/json'},
       body: jsonEncode(user),
     );
-
     if (response.statusCode != 201) {
       throw Exception("Error al registrar");
     }
@@ -55,7 +51,6 @@ class ApiService {
 
   static Future<List<dynamic>> getRoutes() async {
     final response = await http.get(Uri.parse("$baseUrl/routes"));
-
     if (response.statusCode == 200) {
       return json.decode(response.body);
     } else {
@@ -69,7 +64,6 @@ class ApiService {
       headers: {'Content-Type': 'application/json'},
       body: jsonEncode(routeData),
     );
-
     if (response.statusCode != 201) {
       throw Exception("Error al crear ruta: ${response.body}");
     }
@@ -81,11 +75,9 @@ class ApiService {
       headers: {'Content-Type': 'application/json'},
       body: jsonEncode(driverData),
     );
-
     if (response.statusCode != 201) {
       try {
         final body = jsonDecode(response.body);
-
         throw Exception(
           body['message'] ?? body['error'] ?? "Error al registrar el vehículo",
         );
@@ -111,7 +103,6 @@ class ApiService {
       if (response.statusCode == 200) {
         final data = json.decode(response.body);
         final List features = data['features'] ?? [];
-
         return features.map((f) {
           return {
             'name': f['place_name'],
@@ -156,18 +147,75 @@ class ApiService {
     final url = Uri.parse(
       "$baseUrl/routes/$routeId/join/$userId?roundTrip=$roundTrip",
     );
-
     final response = await http.post(url);
-
     if (response.statusCode != 200) {
+      String msg = "Error al unirse a la ruta";
       try {
-        final errorBody = json.decode(response.body);
-
-        throw Exception(errorBody['error'] ?? "Error desconocido al unirse");
-      } catch (e) {
-        throw Exception("Error al unirse a la ruta");
-      }
+        final body = json.decode(response.body);
+        if (body is Map) {
+          msg = body['error']?.toString() ?? body['message']?.toString() ?? msg;
+        }
+      } catch (_) {}
+      throw Exception(msg);
     }
+  }
+
+  static Future<Map<String, dynamic>> joinMultipleRoutes(
+    List<int> routeIds,
+    int userId,
+    bool roundTrip,
+  ) async {
+    final url = Uri.parse(
+      "$baseUrl/routes/join-multiple/$userId?roundTrip=$roundTrip",
+    );
+    final response = await http.post(
+      url,
+      headers: {"Content-Type": "application/json"},
+      body: jsonEncode(routeIds),
+    );
+    if (response.statusCode == 200) {
+      return Map<String, dynamic>.from(json.decode(response.body));
+    }
+    String msg = "Error al unirse a las rutas";
+    try {
+      final body = json.decode(response.body);
+      if (body is Map) {
+        msg = body['error']?.toString() ?? body['message']?.toString() ?? msg;
+      }
+    } catch (_) {}
+    throw Exception(msg);
+  }
+
+  static Future<Map<String, dynamic>> joinSeries(
+    int routeId,
+    int userId,
+    bool roundTrip,
+  ) async {
+    final url = Uri.parse(
+      "$baseUrl/routes/$routeId/join-series/$userId?roundTrip=$roundTrip",
+    );
+    final response = await http.post(url);
+    if (response.statusCode == 200) {
+      return Map<String, dynamic>.from(json.decode(response.body));
+    }
+    String msg = "Error al unirse a la serie";
+    try {
+      final body = json.decode(response.body);
+      if (body is Map) {
+        msg = body['error']?.toString() ?? body['message']?.toString() ?? msg;
+      }
+    } catch (_) {}
+    throw Exception(msg);
+  }
+
+  // info de la serie de una ruta por seriesId, totalRoutes, isSeries.
+  static Future<Map<String, dynamic>> getSeriesInfo(int routeId) async {
+    final url = Uri.parse("$baseUrl/routes/$routeId/series");
+    final response = await http.get(url);
+    if (response.statusCode == 200) {
+      return Map<String, dynamic>.from(json.decode(response.body));
+    }
+    throw Exception("Error obteniendo info de la serie");
   }
 
   static Future<List<dynamic>> getUserReviews(int userId) async {
@@ -209,7 +257,6 @@ class ApiService {
   ) async {
     if (query.length < 3) return [];
 
-    // restringimos la búsqueda a colegios/institutos/universidades
     final url = Uri.parse(
       "https://api.mapbox.com/geocoding/v5/mapbox.places/${Uri.encodeComponent(query)}.json?country=es&types=poi&poi_category=education&access_token=$mapboxToken&limit=5",
     );
@@ -265,12 +312,10 @@ class ApiService {
 
   static Future<void> completeRoute(int routeId) async {
     final url = Uri.parse("$baseUrl/routes/$routeId/complete");
-
     final response = await http.patch(
       url,
       headers: {"Content-Type": "application/json"},
     );
-
     if (response.statusCode != 200) {
       throw Exception("Error al completar el viaje: ${response.body}");
     }
@@ -279,7 +324,6 @@ class ApiService {
   static Future<void> confirmParticipation(int routeId, int userId) async {
     final url = Uri.parse("$baseUrl/routes/$routeId/confirm/$userId");
     final response = await http.patch(url);
-
     if (response.statusCode != 200) {
       throw Exception("Error al confirmar: ${response.body}");
     }
@@ -287,9 +331,7 @@ class ApiService {
 
   static Future<List<dynamic>> getGroupMessages(int groupId) async {
     final url = Uri.parse("$baseUrl/messages/group/$groupId");
-
     final response = await http.get(url);
-
     if (response.statusCode == 200) {
       return json.decode(response.body);
     } else {
@@ -303,7 +345,6 @@ class ApiService {
       headers: {"Content-Type": "application/json"},
       body: json.encode(messageData),
     );
-
     if (response.statusCode != 201) {
       throw Exception("Error al enviar el mensaje");
     }
@@ -323,7 +364,6 @@ class ApiService {
     final response = await http.get(
       Uri.parse("$baseUrl/messages/group-by-route/$routeId"),
     );
-
     if (response.statusCode == 200) {
       return json.decode(response.body);
     } else {
@@ -347,9 +387,7 @@ class ApiService {
     double amount,
   ) async {
     final url = Uri.parse("$baseUrl/users/$userId/balance?amount=$amount");
-
     final response = await http.patch(url);
-
     if (response.statusCode == 200) {
       return json.decode(response.body);
     }
@@ -367,13 +405,10 @@ class ApiService {
       "&roundTrip=$roundTrip",
     );
     final response = await http.get(url);
-
     if (response.statusCode == 200) {
       final data = json.decode(response.body);
-
       return (data['price'] as num).toDouble();
     }
-
     throw Exception("Error calculando precio");
   }
 
@@ -387,7 +422,6 @@ class ApiService {
       headers: {"Content-Type": "application/json"},
       body: jsonEncode(reviewData),
     );
-
     if (response.statusCode != 200 && response.statusCode != 201) {
       throw Exception("Error al guardar la reseña");
     }
@@ -401,5 +435,60 @@ class ApiService {
       return jsonDecode(response.body);
     }
     throw Exception("Error cargando pagos");
+  }
+
+  static Future<List<dynamic>> getSeriesRoutes(int routeId) async {
+    final url = Uri.parse("$baseUrl/routes/$routeId/series-routes");
+    final response = await http.get(url);
+    if (response.statusCode == 200) {
+      return json.decode(response.body);
+    }
+    throw Exception("Error cargando rutas de la serie");
+  }
+
+  static Future<List<dynamic>> getNotifications(int userId) async {
+    final response = await http.get(
+      Uri.parse("$baseUrl/notifications/user/$userId"),
+    );
+    if (response.statusCode == 200) return jsonDecode(response.body);
+    throw Exception("Error cargando notificaciones");
+  }
+
+  static Future<int> countUnreadNotifications(int userId) async {
+    final response = await http.get(
+      Uri.parse("$baseUrl/notifications/user/$userId/unread-count"),
+    );
+    if (response.statusCode == 200) {
+      return int.tryParse(response.body) ?? 0;
+    }
+    return 0;
+  }
+
+  static Future<void> markNotificationsAsRead(int userId) async {
+    await http.patch(
+      Uri.parse("$baseUrl/notifications/user/$userId/mark-read"),
+    );
+  }
+
+  static Future<void> reportIncident(
+    int routeId,
+    int reporterId,
+    String message,
+  ) async {
+    final response = await http.post(
+      Uri.parse(
+        "$baseUrl/notifications/incident/$routeId/reporter/$reporterId",
+      ),
+      headers: {"Content-Type": "application/json"},
+      body: jsonEncode({"message": message}),
+    );
+    if (response.statusCode != 200) {
+      String msg = "Error al reportar la incidencia";
+      try {
+        final body = jsonDecode(response.body);
+        if (body is Map) msg = body['error']?.toString() ?? msg;
+      } catch (_) {}
+      throw Exception(msg);
+    }
   }
 }

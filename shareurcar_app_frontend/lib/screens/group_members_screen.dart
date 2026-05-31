@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:shareurcar_app_frontend/screens/public_profile_screen.dart';
 import '../services/api_service.dart';
 
 class GroupMembersScreen extends StatefulWidget {
@@ -28,72 +29,148 @@ class _GroupMembersScreenState extends State<GroupMembersScreen> {
   void fetchMembers() async {
     try {
       final data = await ApiService.getGroupMembers(widget.groupId!);
-      setState(() {
-        members = data;
-      });
+      if (mounted) setState(() => members = data);
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text("Error cargando integrantes"),
-          backgroundColor: Colors.red,
-        ),
-      );
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text("Error cargando integrantes"),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
     } finally {
-      setState(() => isLoading = false);
+      if (mounted) setState(() => isLoading = false);
     }
   }
 
-  void mostrarOpcionesMiembro(
-    BuildContext context,
-    Map miembro,
-    bool canReview,
-  ) {
-    showDialog(
+  int get _miId => int.parse(
+    (widget.user['idUser'] ?? widget.user['id_user'] ?? widget.user['id'])
+        .toString(),
+  );
+
+  void _mostrarOpciones(Map miembro) {
+    final bool soyYo = miembro['idUser'] == _miId;
+    if (soyYo) return;
+
+    final bool esDriver = miembro['role'] == "Conductor";
+
+    showModalBottomSheet(
       context: context,
-      builder: (context) => AlertDialog(
-        title: Text("Acciones para ${miembro['fullName']}"),
-        content: Column(
+      backgroundColor: Colors.transparent,
+      builder: (_) => Container(
+        padding: const EdgeInsets.fromLTRB(20, 15, 20, 30),
+        decoration: const BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+        ),
+        child: Column(
           mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            TextButton.icon(
-              icon: Icon(Icons.message, color: Color(0xFF5F2C82)),
-              label: Text(
-                "Enviar mensaje privado",
-                style: TextStyle(color: Colors.black87),
+            Container(
+              width: 40,
+              height: 4,
+              margin: const EdgeInsets.only(bottom: 20),
+              decoration: BoxDecoration(
+                color: Colors.grey.shade300,
+                borderRadius: BorderRadius.circular(10),
               ),
-              onPressed: () {
+            ),
+
+            CircleAvatar(
+              radius: 28,
+              backgroundColor: const Color(0xFF5F2C82).withOpacity(0.1),
+              backgroundImage: miembro['profilePhoto'] != null
+                  ? NetworkImage(miembro['profilePhoto'])
+                  : null,
+              child: miembro['profilePhoto'] == null
+                  ? const Icon(Icons.person, color: Color(0xFF5F2C82))
+                  : null,
+            ),
+            const SizedBox(height: 10),
+            Text(
+              miembro['fullName'] ?? '',
+              style: const TextStyle(fontSize: 17, fontWeight: FontWeight.bold),
+            ),
+            Container(
+              margin: const EdgeInsets.only(top: 4, bottom: 20),
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+              decoration: BoxDecoration(
+                color: esDriver ? Colors.green : Colors.orange,
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Text(
+                miembro['role'] ?? '',
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 12,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ),
+
+            // Botón ver perfil
+            _botonOpcion(
+              icono: Icons.person_outline,
+              color: const Color(0xFF5F2C82),
+              label: "Ver perfil",
+              onTap: () {
                 Navigator.pop(context);
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(content: Text("Chat privado en desarrollo...")),
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) => PublicProfileScreen(
+                      userId: miembro['idUser'],
+                      nombre: miembro['fullName'] ?? '',
+                    ),
+                  ),
                 );
               },
             ),
-            if (canReview)
-              TextButton.icon(
-                icon: Icon(Icons.star, color: Colors.orange),
-                label: Text(
-                  "Añadir reseña al conductor",
-                  style: TextStyle(color: Colors.black87),
-                ),
-                onPressed: () {
+
+            const SizedBox(height: 10),
+
+            // Botón añadir reseña
+            if (esDriver)
+              _botonOpcion(
+                icono: Icons.star_outline,
+                color: Colors.orange,
+                label: "Añadir reseña",
+                onTap: () {
                   Navigator.pop(context);
-                  mostrarDialogoFormularioResena(context, miembro['idUser']);
+                  _mostrarFormularioResena(miembro['idUser']);
                 },
               ),
           ],
         ),
-        actions: [
-          TextButton(
-            child: Text("Cancelar", style: TextStyle(color: Colors.grey)),
-            onPressed: () => Navigator.pop(context),
-          ),
-        ],
       ),
     );
   }
 
-  void mostrarDialogoFormularioResena(BuildContext context, int targetUserId) {
+  Widget _botonOpcion({
+    required IconData icono,
+    required Color color,
+    required String label,
+    required VoidCallback onTap,
+  }) {
+    return SizedBox(
+      width: double.infinity,
+      child: OutlinedButton.icon(
+        onPressed: onTap,
+        icon: Icon(icono, color: color),
+        label: Text(label, style: TextStyle(color: color, fontSize: 15)),
+        style: OutlinedButton.styleFrom(
+          padding: const EdgeInsets.symmetric(vertical: 14),
+          side: BorderSide(color: color.withOpacity(0.4)),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12),
+          ),
+        ),
+      ),
+    );
+  }
+
+  void _mostrarFormularioResena(int targetUserId) {
     final TextEditingController comentarioController = TextEditingController();
     double estrellas = 5.0;
 
@@ -101,13 +178,22 @@ class _GroupMembersScreenState extends State<GroupMembersScreen> {
       context: context,
       builder: (ctx) => StatefulBuilder(
         builder: (context, setStateDialog) => AlertDialog(
-          title: Text("Valorar al conductor"),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(20),
+          ),
+          title: const Row(
+            children: [
+              Icon(Icons.star, color: Colors.orange),
+              SizedBox(width: 10),
+              Text("Valorar al conductor"),
+            ],
+          ),
           content: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
               Text(
-                "Puntuación: ${estrellas.toInt()} estrellas",
-                style: TextStyle(fontWeight: FontWeight.bold),
+                "${estrellas.toInt()} estrella(s)",
+                style: const TextStyle(fontWeight: FontWeight.bold),
               ),
               Slider(
                 value: estrellas,
@@ -115,15 +201,30 @@ class _GroupMembersScreenState extends State<GroupMembersScreen> {
                 max: 5,
                 divisions: 4,
                 activeColor: Colors.orange,
-                onChanged: (value) => setStateDialog(() => estrellas = value),
+                label: "${estrellas.toInt()}",
+                onChanged: (v) => setStateDialog(() => estrellas = v),
               ),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: List.generate(5, (i) {
+                  return Icon(
+                    i < estrellas.toInt() ? Icons.star : Icons.star_border,
+                    color: Colors.orange,
+                    size: 28,
+                  );
+                }),
+              ),
+              const SizedBox(height: 15),
               TextField(
                 controller: comentarioController,
                 maxLines: 3,
                 decoration: InputDecoration(
                   hintText: "Escribe tu opinión sobre el viaje...",
+                  filled: true,
+                  fillColor: Colors.grey.shade100,
                   border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(10),
+                    borderRadius: BorderRadius.circular(12),
+                    borderSide: BorderSide.none,
                   ),
                 ),
               ),
@@ -132,43 +233,44 @@ class _GroupMembersScreenState extends State<GroupMembersScreen> {
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(ctx),
-              child: Text("Cancelar"),
+              child: const Text("Cancelar"),
             ),
             ElevatedButton(
-              style: ElevatedButton.styleFrom(backgroundColor: Colors.orange),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.orange,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+              ),
               onPressed: () async {
-                final miUserId =
-                    widget.user['idUser'] ??
-                    widget.user['id_user'] ??
-                    widget.user['id'];
-
-                Map<String, dynamic> dataResena = {
-                  "idReviewer": miUserId,
-                  "stars": estrellas.toInt(),
-                  "comment": comentarioController.text,
-                };
-
                 try {
-                  await ApiService.createReview(targetUserId, dataResena);
-                  if (!context.mounted) return;
+                  await ApiService.createReview(targetUserId, {
+                    "idReviewer": _miId,
+                    "stars": estrellas.toInt(),
+                    "comment": comentarioController.text.trim(),
+                  });
+                  if (!ctx.mounted) return;
                   Navigator.pop(ctx);
                   ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(
+                    const SnackBar(
                       content: Text("¡Reseña guardada con éxito!"),
                       backgroundColor: Colors.green,
                     ),
                   );
                 } catch (e) {
-                  if (!context.mounted) return;
+                  if (!ctx.mounted) return;
                   ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(
-                      content: Text("Error al guardar reseña"),
+                    const SnackBar(
+                      content: Text("Error al guardar la reseña"),
                       backgroundColor: Colors.red,
                     ),
                   );
                 }
               },
-              child: Text("Guardar", style: TextStyle(color: Colors.white)),
+              child: const Text(
+                "Guardar",
+                style: TextStyle(color: Colors.white),
+              ),
             ),
           ],
         ),
@@ -178,193 +280,161 @@ class _GroupMembersScreenState extends State<GroupMembersScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final currentUserId = widget.user['idUser'] ?? widget.user['id_user'];
-
-    bool soyPasajero = false;
-    for (var m in members) {
-      if (m['idUser'] == currentUserId && m['role'] == "Pasajero") {
-        soyPasajero = true;
-        break;
-      }
-    }
-
     return Scaffold(
       backgroundColor: Colors.grey.shade50,
-      body: Column(
-        children: [
-          Container(
-            width: double.infinity,
-            padding: EdgeInsets.fromLTRB(20, 50, 20, 25),
-            decoration: BoxDecoration(
-              gradient: LinearGradient(
-                colors: [Color(0xFF5F2C82), Color(0xFF49A09D)],
-                begin: Alignment.topCenter,
-                end: Alignment.bottomCenter,
+      appBar: AppBar(
+        title: const Text(
+          "Integrantes del grupo",
+          style: TextStyle(color: Colors.black87, fontWeight: FontWeight.bold),
+        ),
+        backgroundColor: Colors.white,
+        elevation: 0,
+        leading: BackButton(color: Colors.black87),
+        centerTitle: true,
+      ),
+      body: isLoading
+          ? const Center(
+              child: CircularProgressIndicator(color: Color(0xFF5F2C82)),
+            )
+          : members.isEmpty
+          ? Center(
+              child: Text(
+                "No hay integrantes",
+                style: TextStyle(color: Colors.grey.shade500),
               ),
-              borderRadius: BorderRadius.vertical(bottom: Radius.circular(30)),
-            ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  children: [
-                    GestureDetector(
-                      onTap: () => Navigator.pop(context),
-                      child: Icon(Icons.arrow_back, color: Colors.white),
-                    ),
-                    SizedBox(width: 15),
-                    Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          "Chat de grupo",
-                          style: TextStyle(
-                            color: Colors.white,
-                            fontSize: 26,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                        SizedBox(height: 4),
-                        Text(
-                          "👥 ${members.length} participantes",
-                          style: TextStyle(color: Colors.white70, fontSize: 14),
+            )
+          : ListView.builder(
+              padding: const EdgeInsets.all(16),
+              itemCount: members.length,
+              itemBuilder: (context, index) {
+                final member = members[index];
+                final bool isMe = member['idUser'] == _miId;
+                final bool isDriver = member['role'] == "Conductor";
+                final double rating = (member['rating'] ?? 0).toDouble();
+
+                return GestureDetector(
+                  onTap: () => _mostrarOpciones(member),
+                  child: Container(
+                    margin: const EdgeInsets.only(bottom: 12),
+                    padding: const EdgeInsets.all(16),
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(16),
+                      border: Border.all(color: Colors.grey.shade200),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.grey.shade100,
+                          blurRadius: 8,
+                          offset: const Offset(0, 3),
                         ),
                       ],
                     ),
-                  ],
-                ),
-              ],
-            ),
-          ),
-          SizedBox(height: 20),
-          Expanded(
-            child: isLoading
-                ? Center(
-                    child: CircularProgressIndicator(color: Color(0xFF5F2C82)),
-                  )
-                : ListView.builder(
-                    padding: EdgeInsets.symmetric(horizontal: 20),
-                    itemCount: members.length,
-                    itemBuilder: (context, index) {
-                      final member = members[index];
-                      final bool isMe = member['idUser'] == currentUserId;
-                      final bool isDriver = member['role'] == "Conductor";
-                      final bool canReview = !isMe && isDriver && soyPasajero;
-
-                      return GestureDetector(
-                        onTap: () {
-                          if (!isMe) {
-                            mostrarOpcionesMiembro(context, member, canReview);
-                          }
-                        },
-                        child: Container(
-                          margin: EdgeInsets.only(bottom: 15),
-                          padding: EdgeInsets.all(16),
-                          decoration: BoxDecoration(
-                            color: Colors.white,
-                            borderRadius: BorderRadius.circular(18),
-                            border: Border.all(color: Colors.grey.shade200),
-                            boxShadow: [
-                              BoxShadow(
-                                color: Colors.grey.shade100,
-                                blurRadius: 10,
-                                spreadRadius: 1,
-                                offset: Offset(0, 4),
-                              ),
-                            ],
-                          ),
-                          child: Row(
+                    child: Row(
+                      children: [
+                        CircleAvatar(
+                          radius: 26,
+                          backgroundColor: const Color(
+                            0xFF5F2C82,
+                          ).withOpacity(0.1),
+                          backgroundImage: member['profilePhoto'] != null
+                              ? NetworkImage(member['profilePhoto'])
+                              : null,
+                          child: member['profilePhoto'] == null
+                              ? const Icon(
+                                  Icons.person,
+                                  color: Color(0xFF5F2C82),
+                                )
+                              : null,
+                        ),
+                        const SizedBox(width: 14),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              CircleAvatar(
-                                radius: 28,
-                                backgroundColor: Color.fromRGBO(
-                                  95,
-                                  44,
-                                  130,
-                                  0.1,
-                                ),
-                                backgroundImage: member['profilePhoto'] != null
-                                    ? NetworkImage(member['profilePhoto'])
-                                    : null,
-                                child: member['profilePhoto'] == null
-                                    ? Icon(
-                                        Icons.person,
-                                        color: Color(0xFF5F2C82),
-                                      )
-                                    : null,
-                              ),
-                              SizedBox(width: 15),
-                              Expanded(
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    Row(
-                                      children: [
-                                        Expanded(
-                                          child: Text(
-                                            member['fullName'],
-                                            style: TextStyle(
-                                              fontWeight: FontWeight.bold,
-                                              fontSize: 16,
-                                              color: Colors.black87,
-                                            ),
-                                          ),
-                                        ),
-                                        if (isMe)
-                                          Container(
-                                            padding: EdgeInsets.symmetric(
-                                              horizontal: 10,
-                                              vertical: 5,
-                                            ),
-                                            decoration: BoxDecoration(
-                                              color: Color(0xFF5F2C82),
-                                              borderRadius:
-                                                  BorderRadius.circular(12),
-                                            ),
-                                            child: Text(
-                                              "Tú",
-                                              style: TextStyle(
-                                                color: Colors.white,
-                                                fontSize: 11,
-                                                fontWeight: FontWeight.bold,
-                                              ),
-                                            ),
-                                          ),
-                                      ],
+                              Row(
+                                children: [
+                                  Expanded(
+                                    child: Text(
+                                      member['fullName'] ?? '',
+                                      style: const TextStyle(
+                                        fontWeight: FontWeight.bold,
+                                        fontSize: 15,
+                                      ),
                                     ),
-                                    SizedBox(height: 8),
+                                  ),
+                                  if (isMe)
                                     Container(
-                                      padding: EdgeInsets.symmetric(
-                                        horizontal: 10,
-                                        vertical: 5,
+                                      padding: const EdgeInsets.symmetric(
+                                        horizontal: 8,
+                                        vertical: 3,
                                       ),
                                       decoration: BoxDecoration(
-                                        color: isDriver
-                                            ? Colors.green
-                                            : Colors.red,
-                                        borderRadius: BorderRadius.circular(12),
+                                        color: const Color(0xFF5F2C82),
+                                        borderRadius: BorderRadius.circular(10),
                                       ),
-                                      child: Text(
-                                        member['role'],
+                                      child: const Text(
+                                        "Tú",
                                         style: TextStyle(
                                           color: Colors.white,
-                                          fontWeight: FontWeight.bold,
                                           fontSize: 11,
+                                          fontWeight: FontWeight.bold,
                                         ),
+                                      ),
+                                    ),
+                                ],
+                              ),
+                              const SizedBox(height: 5),
+                              Row(
+                                children: [
+                                  Container(
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: 8,
+                                      vertical: 3,
+                                    ),
+                                    decoration: BoxDecoration(
+                                      color: isDriver
+                                          ? Colors.green
+                                          : Colors.orange,
+                                      borderRadius: BorderRadius.circular(10),
+                                    ),
+                                    child: Text(
+                                      member['role'] ?? '',
+                                      style: const TextStyle(
+                                        color: Colors.white,
+                                        fontSize: 11,
+                                        fontWeight: FontWeight.bold,
+                                      ),
+                                    ),
+                                  ),
+                                  const SizedBox(width: 8),
+                                  if (rating > 0) ...[
+                                    const Icon(
+                                      Icons.star,
+                                      size: 14,
+                                      color: Colors.amber,
+                                    ),
+                                    const SizedBox(width: 3),
+                                    Text(
+                                      rating.toStringAsFixed(1),
+                                      style: TextStyle(
+                                        fontSize: 13,
+                                        color: Colors.grey.shade600,
                                       ),
                                     ),
                                   ],
-                                ),
+                                ],
                               ),
                             ],
                           ),
                         ),
-                      );
-                    },
+                        if (!isMe)
+                          Icon(Icons.more_vert, color: Colors.grey.shade400),
+                      ],
+                    ),
                   ),
-          ),
-        ],
-      ),
+                );
+              },
+            ),
     );
   }
 }

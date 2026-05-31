@@ -102,7 +102,6 @@ class _AllRoutesScreenState extends State<AllRoutesScreen> {
             ),
           ),
 
-          // Lista de rutas
           Expanded(
             child: rutasFiltradas.isEmpty
                 ? Center(

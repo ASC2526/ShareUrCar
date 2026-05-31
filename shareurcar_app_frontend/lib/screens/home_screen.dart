@@ -6,6 +6,7 @@ import 'package:shareurcar_app_frontend/screens/create_route_screen.dart';
 import 'package:shareurcar_app_frontend/screens/login_screen.dart';
 import 'package:shareurcar_app_frontend/screens/search_route_screen.dart';
 import 'package:shareurcar_app_frontend/screens/wallet_screen.dart';
+import 'package:shareurcar_app_frontend/screens/notifications_screen.dart';
 import '../services/api_service.dart';
 
 class HomeScreen extends StatefulWidget {
@@ -20,6 +21,7 @@ class _HomeScreenState extends State<HomeScreen> {
   List dynamicRoutes = [];
   bool isLoading = true;
   late Map currentUser;
+  int _unreadNotifications = 0;
 
   @override
   void initState() {
@@ -28,6 +30,7 @@ class _HomeScreenState extends State<HomeScreen> {
     currentUser = widget.user;
     _refreshUser();
     fetchMyRoutes();
+    _loadUnreadCount();
   }
 
   Future<void> _refreshUser() async {
@@ -37,6 +40,15 @@ class _HomeScreenState extends State<HomeScreen> {
     } catch (e) {
       debugPrint("Error refrescando usuario: $e");
     }
+  }
+
+  Future<void> _loadUnreadCount() async {
+    try {
+      final count = await ApiService.countUnreadNotifications(
+        currentUser['idUser'],
+      );
+      if (mounted) setState(() => _unreadNotifications = count);
+    } catch (_) {}
   }
 
   void fetchMyRoutes() async {
@@ -109,7 +121,6 @@ class _HomeScreenState extends State<HomeScreen> {
   String _obtenerIniciales(String nombre) =>
       nombre.isNotEmpty ? nombre[0].toUpperCase() : "U";
 
-  // ─────────────────────────────────────────────────────────
   @override
   Widget build(BuildContext context) {
     final String? fotoUrl = currentUser['profile_photo'];
@@ -123,7 +134,6 @@ class _HomeScreenState extends State<HomeScreen> {
       backgroundColor: Colors.grey[50],
       body: Column(
         children: [
-          // ── CABECERA ──────────────────────────────────────
           Container(
             width: double.infinity,
             padding: const EdgeInsets.fromLTRB(20, 50, 20, 20),
@@ -161,20 +171,47 @@ class _HomeScreenState extends State<HomeScreen> {
                     ),
                     Row(
                       children: [
-                        IconButton(
-                          icon: const Icon(
-                            Icons.notifications_none,
-                            color: Colors.white,
-                          ),
-                          onPressed: () {
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              const SnackBar(
-                                content: Text(
-                                  "No tienes notificaciones nuevas",
+                        Stack(
+                          children: [
+                            IconButton(
+                              icon: const Icon(
+                                Icons.notifications_none,
+                                color: Colors.white,
+                              ),
+                              onPressed: () async {
+                                await Navigator.push(
+                                  context,
+                                  MaterialPageRoute(
+                                    builder: (_) =>
+                                        NotificationsScreen(user: currentUser),
+                                  ),
+                                );
+                                _loadUnreadCount();
+                              },
+                            ),
+                            if (_unreadNotifications > 0)
+                              Positioned(
+                                right: 8,
+                                top: 8,
+                                child: Container(
+                                  padding: const EdgeInsets.all(4),
+                                  decoration: const BoxDecoration(
+                                    color: Colors.red,
+                                    shape: BoxShape.circle,
+                                  ),
+                                  child: Text(
+                                    _unreadNotifications > 9
+                                        ? "9+"
+                                        : "$_unreadNotifications",
+                                    style: const TextStyle(
+                                      color: Colors.white,
+                                      fontSize: 10,
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                  ),
                                 ),
                               ),
-                            );
-                          },
+                          ],
                         ),
                         PopupMenuButton<String>(
                           offset: const Offset(0, 45),
@@ -239,7 +276,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
                 const SizedBox(height: 25),
 
-                // ── TARJETA SALDO ─────────────────────────────
+                // Tarjeta saldo
                 GestureDetector(
                   onTap: () async {
                     await Navigator.push(
@@ -306,7 +343,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
                 const SizedBox(height: 25),
 
-                // ── BOTONES CREAR / BUSCAR ────────────────────
+                // botones crear y buscar
                 Row(
                   children: [
                     Expanded(
@@ -358,14 +395,12 @@ class _HomeScreenState extends State<HomeScreen> {
 
           const SizedBox(height: 20),
 
-          // ── LISTA DE VIAJES ───────────────────────────────
           Expanded(
             child: Padding(
               padding: const EdgeInsets.symmetric(horizontal: 20),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  // Cabecera sección
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
@@ -401,7 +436,6 @@ class _HomeScreenState extends State<HomeScreen> {
                   ),
                   const SizedBox(height: 15),
 
-                  // Contenido
                   Expanded(
                     child: isLoading
                         ? const Center(
@@ -452,7 +486,7 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  // ── WIDGETS AUXILIARES ──────────────────────────────────
+  // widgets auxiliares
   Widget _actionButton(String text, IconData icon, Color color) {
     return Container(
       padding: const EdgeInsets.symmetric(vertical: 18),
@@ -502,9 +536,8 @@ class _HomeScreenState extends State<HomeScreen> {
     );
     final driverName = ruta['driverName'] ?? "Conductor";
 
-    // Plazas: pasajeros ocupados vs total del coche
     final List pasajeros = (ruta['passengers'] as List?) ?? [];
-    final int plazasOcupadas = pasajeros.length + 1; // + conductor
+    final int plazasOcupadas = pasajeros.length + 1;
     final int plazasDisponibles = (ruta['available_seats'] ?? 0) as int;
     final int plazasTotales = plazasOcupadas + plazasDisponibles;
 
@@ -541,7 +574,7 @@ class _HomeScreenState extends State<HomeScreen> {
             padding: const EdgeInsets.all(16),
             child: Column(
               children: [
-                // Destino + hora + badge fecha
+                // Destino + hora + fecha
                 Row(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [

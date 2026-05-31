@@ -1,7 +1,7 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
-import '../services/api_service.dart'; // Asegúrate de que esta ruta sea correcta
+import '../services/api_service.dart';
 
 class EditProfileScreen extends StatefulWidget {
   final Map user;
