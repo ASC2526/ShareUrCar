@@ -241,12 +241,8 @@ class ApiService {
     if (response.statusCode == 200) {
       return true;
     }
-    try {
-      final body = jsonDecode(response.body);
-      throw Exception(body['message'] ?? body['error'] ?? response.body);
-    } catch (_) {
-      throw Exception(response.body);
-    }
+    final body = jsonDecode(response.body);
+    throw Exception(body['message'] ?? "Error desconocido");
   }
 
   static Future<Map<String, dynamic>> getUserById(int userId) async {
@@ -395,5 +391,15 @@ class ApiService {
     if (response.statusCode != 200 && response.statusCode != 201) {
       throw Exception("Error al guardar la reseña");
     }
+  }
+
+  static Future<List<dynamic>> getUserPayments(int userId) async {
+    final response = await http.get(
+      Uri.parse("$baseUrl/payments/user/$userId"),
+    );
+    if (response.statusCode == 200) {
+      return jsonDecode(response.body);
+    }
+    throw Exception("Error cargando pagos");
   }
 }

@@ -18,6 +18,7 @@ class _CreateRouteScreenState extends State<CreateRouteScreen> {
   final originController = TextEditingController();
   final destinationController = TextEditingController();
   final pickupController = TextEditingController();
+  final colorController = TextEditingController();
 
   List<Map<String, dynamic>> originSuggestions = [];
   List<Map<String, dynamic>> destinationSuggestions = [];
@@ -347,13 +348,18 @@ class _CreateRouteScreenState extends State<CreateRouteScreen> {
             SizedBox(height: 10),
             TextFormField(
               controller: modelController,
-              decoration: _inputDeco("Modelo (Ej: Seat Ibiza)", null),
+              decoration: _inputDeco("Modelo (Ej: Dacia Sandero)", null),
             ),
             SizedBox(height: 10),
             TextFormField(
               controller: carSeatsController,
-              decoration: _inputDeco("Plazas máximas", null),
+              decoration: _inputDeco("Plazas máximas( Contándote a ti)", null),
               keyboardType: TextInputType.number,
+            ),
+            SizedBox(height: 10),
+            TextFormField(
+              controller: colorController,
+              decoration: _inputDeco("Color (Ej: Rojo)", null),
             ),
           ],
         ),
@@ -379,6 +385,7 @@ class _CreateRouteScreenState extends State<CreateRouteScreen> {
                   "idDriver": widget.user['idUser'],
                   "carModel": modelController.text.trim(),
                   "maxSeats": int.parse(carSeatsController.text.trim()),
+                  "carColor": colorController.text.trim(),
                 });
                 if (!mounted) return;
                 Navigator.pop(context);

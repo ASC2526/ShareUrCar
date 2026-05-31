@@ -22,9 +22,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
   @override
   void initState() {
     super.initState();
-    _cargarResenas();
-    _cargarDatosPerfil();
     currentUser = widget.user;
+    _cargarDatosPerfil();
   }
 
   Future<void> _refreshUserData() async {
@@ -66,9 +65,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
         currentUser['idUser'] ?? currentUser['id_user'] ?? currentUser['id'];
 
     final data = await ApiService.getUserReviews(userId);
-
     final viajes = await ApiService.getCompletedTripsCount(userId);
-
     double suma = 0;
     for (var r in data) {
       suma += (r['stars'] ?? 0);
@@ -81,32 +78,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
         if (resenas.isNotEmpty) valoracionMedia = suma / resenas.length;
         isLoadingReviews = false;
       });
-    }
-  }
-
-  void _cargarResenas() async {
-    try {
-      final userId =
-          currentUser['idUser'] ?? currentUser['id_user'] ?? currentUser['id'];
-      final data = await ApiService.getUserReviews(userId);
-
-      double suma = 0;
-      for (var r in data) {
-        suma += (r['stars'] ?? 0);
-      }
-
-      if (mounted) {
-        setState(() {
-          resenas = data;
-          if (resenas.isNotEmpty) {
-            valoracionMedia = suma / resenas.length;
-          }
-          isLoadingReviews = false;
-        });
-      }
-    } catch (e) {
-      print("Error cargando reseñas: $e");
-      if (mounted) setState(() => isLoadingReviews = false);
     }
   }
 
@@ -554,7 +525,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
     );
   }
 
-  // RESEÑAS
   Widget _buildResenasTab() {
     if (isLoadingReviews) {
       return Center(child: CircularProgressIndicator(color: Color(0xFF5F2C82)));

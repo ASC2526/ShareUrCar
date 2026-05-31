@@ -18,6 +18,7 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
   int? groupId;
   final TextEditingController messageController = TextEditingController();
   final ScrollController _scrollController = ScrollController();
+  int totalParticipantes = 0;
 
   @override
   void initState() {
@@ -51,6 +52,7 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
         setState(() => groupId = result);
       }
       await fetchMessages();
+      await loadMembersCount();
     } catch (e) {
       if (mounted) {
         setState(() => isLoading = false);
@@ -139,6 +141,18 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
     );
   }
 
+  Future<void> loadMembersCount() async {
+    if (groupId == null) return;
+
+    final members = await ApiService.getGroupMembers(groupId!);
+
+    if (mounted) {
+      setState(() {
+        totalParticipantes = members.length;
+      });
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final destino = widget.ruta['destination'] ?? "Chat del viaje";
@@ -174,9 +188,9 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
                 ),
                 overflow: TextOverflow.ellipsis,
               ),
-              const Text(
-                "Toca para ver integrantes",
-                style: TextStyle(color: Colors.white70, fontSize: 11),
+              Text(
+                "👥 $totalParticipantes participantes",
+                style: const TextStyle(color: Colors.white70, fontSize: 11),
               ),
             ],
           ),

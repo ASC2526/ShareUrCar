@@ -3,14 +3,17 @@ package com.asc2526.da.unit5.shareurcarbackend.service;
 import com.asc2526.da.unit5.shareurcarbackend.exception.AlreadyExistsException;
 import com.asc2526.da.unit5.shareurcarbackend.exception.UserNotFoundException;
 import com.asc2526.da.unit5.shareurcarbackend.model.Driver;
+import com.asc2526.da.unit5.shareurcarbackend.model.Payment;
 import com.asc2526.da.unit5.shareurcarbackend.model.Review;
 import com.asc2526.da.unit5.shareurcarbackend.model.User;
 import com.asc2526.da.unit5.shareurcarbackend.repository.DriverRepository;
+import com.asc2526.da.unit5.shareurcarbackend.repository.PaymentRepository;
 import com.asc2526.da.unit5.shareurcarbackend.repository.ReviewRepository;
 import com.asc2526.da.unit5.shareurcarbackend.repository.UserRepository;
 import jakarta.transaction.Transactional;
 import org.springframework.stereotype.Service;
 
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -21,11 +24,13 @@ public class UserService {
     private final UserRepository userRepository;
     private final ReviewRepository reviewRepository;
     private final DriverRepository driverRepository;
+    private final PaymentRepository paymentRepository;
 
-    public UserService(UserRepository userRepository, ReviewRepository reviewRepository, DriverRepository driverRepository) {
+    public UserService(UserRepository userRepository, ReviewRepository reviewRepository, DriverRepository driverRepository, PaymentRepository paymentRepository) {
         this.userRepository = userRepository;
         this.reviewRepository = reviewRepository;
         this.driverRepository = driverRepository;
+        this.paymentRepository = paymentRepository;
     }
 
     public List<User> getAllUsers() {
@@ -71,6 +76,27 @@ public class UserService {
                 throw new RuntimeException("No tienes saldo suficiente");
             }
         }
+        if (Math.abs(amount) < 5) {
+            throw new RuntimeException("La cantidad mínima es 5 €");
+        }
+
+        if (Math.abs(amount) > 500) {
+            throw new RuntimeException("La cantidad máxima es 500 €");
+        }
+
+        Payment payment = new Payment();
+        payment.setIdUser(userId);
+        payment.setAmount(Math.abs(amount));
+        payment.setPaymentStatus("COMPLETED");
+        payment.setCreatedAt(LocalDateTime.now());
+
+        if(amount > 0) {
+            payment.setPaymentType("DEPOSIT");
+        } else {
+            payment.setPaymentType("WITHDRAW");
+        }
+
+        paymentRepository.save(payment);
         user.setBalance(balance + amount);
         return userRepository.save(user);
     }

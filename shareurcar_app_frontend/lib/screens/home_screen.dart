@@ -24,6 +24,7 @@ class _HomeScreenState extends State<HomeScreen> {
   @override
   void initState() {
     super.initState();
+
     currentUser = widget.user;
     _refreshUser();
     fetchMyRoutes();
@@ -113,7 +114,10 @@ class _HomeScreenState extends State<HomeScreen> {
   Widget build(BuildContext context) {
     final String? fotoUrl = currentUser['profile_photo'];
     final String nombreUsuario = currentUser['firstname'] ?? 'Usuario';
-    final rutasSemana = _filtrarRutasSemana(dynamicRoutes);
+    final rutasFiltradas = dynamicRoutes
+        .where((r) => r['status'] != 'COMPLETED')
+        .toList();
+    final rutasSemana = _filtrarRutasSemana(rutasFiltradas);
 
     return Scaffold(
       backgroundColor: Colors.grey[50],
@@ -500,7 +504,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
     // Plazas: pasajeros ocupados vs total del coche
     final List pasajeros = (ruta['passengers'] as List?) ?? [];
-    final int plazasOcupadas = pasajeros.length;
+    final int plazasOcupadas = pasajeros.length + 1; // + conductor
     final int plazasDisponibles = (ruta['available_seats'] ?? 0) as int;
     final int plazasTotales = plazasOcupadas + plazasDisponibles;
 
@@ -568,7 +572,9 @@ class _HomeScreenState extends State<HomeScreen> {
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
                           ),
+
                           const SizedBox(height: 4),
+
                           Row(
                             children: [
                               Icon(
@@ -606,10 +612,10 @@ class _HomeScreenState extends State<HomeScreen> {
                       ),
                       child: Text(
                         fechaRelativa,
-                        style: const TextStyle(
-                          color: Color(0xFF5C6BC0),
-                          fontWeight: FontWeight.bold,
-                          fontSize: 12,
+                        style: TextStyle(
+                          color: Colors.grey.shade600,
+                          fontSize: 13,
+                          fontWeight: FontWeight.w500,
                         ),
                       ),
                     ),

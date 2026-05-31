@@ -16,9 +16,10 @@ public interface PaymentRepository extends JpaRepository<Payment, Integer> {
     List<Payment> findByGroup(@Param("groupId") Integer groupId);
 
     @Query("""
-        SELECT p
-        FROM Payment p
-        WHERE p.idUser = :userId
+    SELECT p
+    FROM Payment p
+    WHERE p.idUser = :userId
+    ORDER BY p.createdAt DESC
     """)
     List<Payment> findByUser(@Param("userId") Integer userId);
 

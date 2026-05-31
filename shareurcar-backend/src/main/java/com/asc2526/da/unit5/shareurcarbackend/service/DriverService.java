@@ -37,7 +37,34 @@ public class DriverService {
         if (driverRepository.existsByCarPlate(driver.getCarPlate())) {
             throw new AlreadyExistsException("Ese coche ya está registrado");
         }
+        String carPlate = driver.getCarPlate();
 
+        if (carPlate == null || carPlate.isBlank()) {
+            throw new IllegalArgumentException("La matrícula es obligatoria");
+        }
+
+        carPlate = carPlate.toUpperCase().replace(" ", "");
+
+        if (!carPlate.matches("\\d{4}[A-Z]{3}")) {
+            throw new IllegalArgumentException(
+                    "La matrícula debe tener formato 1234ABC");
+        }
+
+        driver.setCarPlate(carPlate);
+
+        if (driver.getCarModel() == null
+                || driver.getCarModel().isBlank()
+                || driver.getCarModel().length() < 2) {
+            throw new IllegalArgumentException(
+                    "Introduce un modelo válido");
+        }
+
+        if (driver.getCarColor() == null
+                || driver.getCarColor().isBlank()
+                || driver.getCarColor().length() < 3) {
+            throw new IllegalArgumentException(
+                    "Introduce un color válido");
+        }
         return driverRepository.save(driver);
     }
 

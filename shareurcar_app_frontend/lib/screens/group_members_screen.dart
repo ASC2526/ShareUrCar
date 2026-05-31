@@ -226,7 +226,7 @@ class _GroupMembersScreenState extends State<GroupMembersScreen> {
                         ),
                         SizedBox(height: 4),
                         Text(
-                          "Integrantes",
+                          "👥 ${members.length} participantes",
                           style: TextStyle(color: Colors.white70, fontSize: 14),
                         ),
                       ],

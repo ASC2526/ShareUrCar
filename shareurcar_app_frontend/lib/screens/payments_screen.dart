@@ -13,12 +13,15 @@ class PaymentsScreen extends StatefulWidget {
 
 class _PaymentsScreenState extends State<PaymentsScreen> {
   late Map currentUser;
+  List<dynamic> payments = [];
+  bool loadingPayments = true;
 
   @override
   void initState() {
     super.initState();
     currentUser = widget.user;
     _refreshUser();
+    _loadPayments();
   }
 
   Future<void> _refreshUser() async {
@@ -29,11 +32,33 @@ class _PaymentsScreenState extends State<PaymentsScreen> {
     });
   }
 
+  Future<void> _loadPayments() async {
+    try {
+      final paymentsData = await ApiService.getUserPayments(
+        currentUser['idUser'],
+      );
+
+      if (mounted) {
+        setState(() {
+          payments = paymentsData;
+          loadingPayments = false;
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          loadingPayments = false;
+        });
+      }
+    }
+  }
+
   Future<void> _updateBalance(double amount) async {
     try {
       await ApiService.updateBalance(currentUser['idUser'], amount);
 
       await _refreshUser();
+      await _loadPayments();
 
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
@@ -100,8 +125,27 @@ class _PaymentsScreenState extends State<PaymentsScreen> {
               onPressed: () async {
                 try {
                   double amount = double.parse(controller.text);
+                  if (amount < 5) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: Text(
+                          "La cantidad mínima que se puede añadir es 5 €",
+                        ),
+                        backgroundColor: Colors.orange,
+                      ),
+                    );
+                    return;
+                  }
 
-                  if (amount <= 0) {
+                  if (amount > 500) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: Text(
+                          "La cantidad máxima que se puede añadir es 500 €",
+                        ),
+                        backgroundColor: Colors.orange,
+                      ),
+                    );
                     return;
                   }
 
@@ -297,21 +341,88 @@ class _PaymentsScreenState extends State<PaymentsScreen> {
 
             SizedBox(height: 18),
 
-            _buildActivityItem(
-              "Reserva de viaje",
-              "-2.75 €",
-              Icons.directions_car,
-              Colors.redAccent,
-            ),
+            loadingPayments
+                ? CircularProgressIndicator()
+                : payments.isEmpty
+                ? Padding(
+                    padding: EdgeInsets.all(20),
+                    child: Text(
+                      "Todavía no hay movimientos",
+                      style: TextStyle(color: Colors.grey),
+                    ),
+                  )
+                : Column(
+                    children: payments.map((payment) {
+                      final amount = (payment['amount'] ?? 0).toDouble();
+                      final type = payment['paymentType'] ?? "";
 
-            SizedBox(height: 12),
+                      String title;
+                      String amountText;
+                      IconData icon;
+                      Color color;
 
-            _buildActivityItem(
-              "Recarga de saldo",
-              "+15.00 €",
-              Icons.add_circle_outline,
-              Color(0xFF49A09D),
-            ),
+                      switch (type) {
+                        case "DEPOSIT":
+                          title = "Recarga de saldo";
+                          amountText = "+${amount.toStringAsFixed(2)} €";
+                          icon = Icons.add_circle;
+                          color = Colors.green;
+                          break;
+
+                        case "WITHDRAW":
+                          title = "Retirada de saldo";
+                          amountText = "-${amount.toStringAsFixed(2)} €";
+                          icon = Icons.remove_circle;
+                          color = Colors.red;
+                          break;
+
+                        case "TRIP_PAYMENT":
+                          title = "Pago de viaje";
+                          amountText = "-${amount.toStringAsFixed(2)} €";
+                          icon = Icons.directions_car;
+                          color = Colors.redAccent;
+                          break;
+
+                        case "TRIP_INCOME":
+                          title = "Cobro por viaje";
+                          amountText = "+${amount.toStringAsFixed(2)} €";
+                          icon = Icons.payments;
+                          color = Colors.green;
+                          break;
+
+                        case "REFUND":
+                          title = "Reembolso";
+                          amountText = "+${amount.toStringAsFixed(2)} €";
+                          icon = Icons.reply;
+                          color = Colors.blue;
+                          break;
+
+                        case "PRICE_ADJUSTMENT":
+                          title = "Ajuste de precio";
+                          amountText = "+${amount.toStringAsFixed(2)} €";
+                          icon = Icons.savings;
+                          color = Colors.green;
+
+                          break;
+
+                        default:
+                          title = "Movimiento";
+                          amountText = "${amount.toStringAsFixed(2)} €";
+                          icon = Icons.receipt_long;
+                          color = Colors.grey;
+                      }
+
+                      return Padding(
+                        padding: const EdgeInsets.only(bottom: 12),
+                        child: _buildActivityItem(
+                          title,
+                          amountText,
+                          icon,
+                          color,
+                        ),
+                      );
+                    }).toList(),
+                  ),
           ],
         ),
       ),
@@ -395,8 +506,9 @@ class _PaymentsScreenState extends State<PaymentsScreen> {
             padding: EdgeInsets.all(12),
 
             decoration: BoxDecoration(
-              color: color.withValues(alpha: 0.1),
-              borderRadius: BorderRadius.circular(12),
+              color: color.withValues(alpha: 0.08),
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(color: color.withValues(alpha: 0.35)),
             ),
 
             child: Icon(icon, color: color),

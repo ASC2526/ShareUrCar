@@ -238,6 +238,62 @@ class _ActiveTripScreenState extends State<ActiveTripScreen> {
     );
   }
 
+  String _formatearHora(String hora) {
+    try {
+      final partes = hora.split(":");
+      return "${partes[0]}:${partes[1]}";
+    } catch (_) {
+      return hora;
+    }
+  }
+
+  String _formatearFechaCompleta(String? fechaIso) {
+    if (fechaIso == null) return "";
+
+    try {
+      final fecha = DateTime.parse(fechaIso);
+
+      const dias = [
+        "Lunes",
+        "Martes",
+        "Miércoles",
+        "Jueves",
+        "Viernes",
+        "Sábado",
+        "Domingo",
+      ];
+
+      return "${dias[fecha.weekday - 1]} "
+          "${fecha.day.toString().padLeft(2, '0')}/"
+          "${fecha.month.toString().padLeft(2, '0')}/"
+          "${fecha.year}";
+    } catch (_) {
+      return fechaIso;
+    }
+  }
+
+  String _obtenerFechaRelativa(String? fechaIso) {
+    if (fechaIso == null) return "";
+
+    try {
+      final fecha = DateTime.parse(fechaIso);
+      final hoy = DateTime.now();
+
+      final diff = DateTime(
+        fecha.year,
+        fecha.month,
+        fecha.day,
+      ).difference(DateTime(hoy.year, hoy.month, hoy.day)).inDays;
+
+      if (diff == 0) return "Hoy";
+      if (diff == 1) return "Mañana";
+
+      return "En $diff días";
+    } catch (_) {
+      return "";
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final bool esConductor =
@@ -256,164 +312,315 @@ class _ActiveTripScreenState extends State<ActiveTripScreen> {
         leading: BackButton(color: Colors.black87),
         centerTitle: true,
       ),
-      body: Padding(
-        padding: const EdgeInsets.all(20.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Container(
-              padding: EdgeInsets.all(20),
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(16),
-                border: Border.all(color: Colors.grey.shade200),
+      body: SingleChildScrollView(
+        child: Padding(
+          padding: const EdgeInsets.all(20),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              ListTile(
+                contentPadding: EdgeInsets.zero,
+                leading: CircleAvatar(
+                  backgroundColor: Color.fromRGBO(95, 44, 130, 0.1),
+                  child: Icon(Icons.chat, color: Color(0xFF5F2C82)),
+                ),
+                title: Text(
+                  "Chat del grupo",
+                  style: TextStyle(fontWeight: FontWeight.bold),
+                ),
+                subtitle: Text("Habla con el conductor y pasajeros"),
+                trailing: Icon(Icons.arrow_forward_ios, size: 16),
+                onTap: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) =>
+                          GroupChatScreen(ruta: widget.ruta, user: widget.user),
+                    ),
+                  );
+                },
               ),
-              child: Column(
-                children: [
-                  Row(
-                    children: [
-                      Icon(
-                        Icons.radio_button_checked,
-                        color: Colors.blue.shade600,
-                      ),
-                      SizedBox(width: 15),
-                      Expanded(
-                        child: Text(
-                          widget.ruta['origin'] ?? '',
-                          style: TextStyle(fontSize: 16),
+              SizedBox(height: 15),
+              Container(
+                padding: EdgeInsets.all(20),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(16),
+                  border: Border.all(color: Colors.grey.shade200),
+                ),
+                child: Column(
+                  children: [
+                    Row(
+                      children: [
+                        Icon(
+                          Icons.radio_button_checked,
+                          color: Colors.blue.shade600,
+                        ),
+                        SizedBox(width: 15),
+                        Expanded(
+                          child: Text(
+                            widget.ruta['origin'] ?? '',
+                            style: TextStyle(fontSize: 16),
+                          ),
+                        ),
+                      ],
+                    ),
+                    Align(
+                      alignment: Alignment.centerLeft,
+                      child: Padding(
+                        padding: EdgeInsets.only(left: 11),
+                        child: Container(
+                          height: 20,
+                          width: 2,
+                          color: Colors.grey.shade300,
                         ),
                       ),
-                    ],
-                  ),
-                  Align(
-                    alignment: Alignment.centerLeft,
-                    child: Padding(
-                      padding: EdgeInsets.only(left: 11),
-                      child: Container(
-                        height: 20,
-                        width: 2,
-                        color: Colors.grey.shade300,
-                      ),
                     ),
-                  ),
-                  Row(
-                    children: [
-                      Icon(Icons.location_on, color: Colors.red),
-                      SizedBox(width: 15),
-                      Expanded(
-                        child: Text(
-                          widget.ruta['destination'] ?? '',
+                    Row(
+                      children: [
+                        Icon(Icons.location_on, color: Colors.red),
+                        SizedBox(width: 15),
+                        Expanded(
+                          child: Text(
+                            widget.ruta['destination'] ?? '',
+                            style: TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+
+              SizedBox(height: 15),
+
+              Container(
+                width: double.infinity,
+                padding: EdgeInsets.all(18),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(14),
+                  border: Border.all(color: Colors.grey.shade200),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Icon(Icons.info_outline, color: Color(0xFF5F2C82)),
+                        SizedBox(width: 10),
+                        Text(
+                          "Información del viaje",
                           style: TextStyle(
-                            fontSize: 16,
+                            fontSize: 17,
                             fontWeight: FontWeight.bold,
                           ),
                         ),
+                      ],
+                    ),
+
+                    SizedBox(height: 15),
+
+                    Text(
+                      "📅 ${_formatearFechaCompleta(widget.ruta['travel_date'])} · "
+                      "${_obtenerFechaRelativa(widget.ruta['travel_date'])}",
+                    ),
+
+                    SizedBox(height: 10),
+
+                    Text(
+                      widget.ruta['return_time'] != null
+                          ? "🕒 Salida: ${_formatearHora(widget.ruta['departure_time'])} · "
+                                "Vuelta: ${_formatearHora(widget.ruta['return_time'])}"
+                          : "🕒 Salida: ${_formatearHora(widget.ruta['departure_time'])}",
+                    ),
+                  ],
+                ),
+              ),
+
+              SizedBox(height: 15),
+
+              Container(
+                width: double.infinity,
+                padding: EdgeInsets.all(18),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(14),
+                  border: Border.all(color: Colors.grey.shade200),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Icon(Icons.tune, color: Color(0xFF5F2C82)),
+                        SizedBox(width: 10),
+                        Text(
+                          "Preferencias del conductor",
+                          style: TextStyle(
+                            fontSize: 17,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ],
+                    ),
+
+                    SizedBox(height: 15),
+
+                    Container(
+                      width: double.infinity,
+                      padding: const EdgeInsets.all(12),
+                      margin: const EdgeInsets.only(bottom: 10),
+                      decoration: BoxDecoration(
+                        color: (widget.ruta['allowRoundTrip'] ?? false)
+                            ? Colors.green.shade50
+                            : Colors.red.shade50,
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(
+                          color: (widget.ruta['allowRoundTrip'] ?? false)
+                              ? Colors.green.shade300
+                              : Colors.red.shade300,
+                        ),
                       ),
-                    ],
+                      child: Row(
+                        children: [
+                          Icon(
+                            (widget.ruta['allowRoundTrip'] ?? false)
+                                ? Icons.swap_horiz
+                                : Icons.block,
+                            color: (widget.ruta['allowRoundTrip'] ?? false)
+                                ? Colors.green
+                                : Colors.red,
+                          ),
+                          SizedBox(width: 10),
+                          Text(
+                            (widget.ruta['allowRoundTrip'] ?? false)
+                                ? "Ruta con ida y vuelta"
+                                : "Solo viaje de ida",
+                          ),
+                        ],
+                      ),
+                    ),
+
+                    CheckboxListTile(
+                      value:
+                          widget.ruta['prefNoTalk'] ??
+                          widget.ruta['pref_no_talk'] ??
+                          false,
+                      onChanged: null,
+                      title: const Text("😶 Viaje sin conversar"),
+                    ),
+
+                    CheckboxListTile(
+                      value:
+                          widget.ruta['prefLuggage'] ??
+                          widget.ruta['pref_luggage'] ??
+                          false,
+                      onChanged: null,
+                      title: const Text("💼 Equipaje permitido"),
+                    ),
+
+                    CheckboxListTile(
+                      value:
+                          widget.ruta['prefMusic'] ??
+                          widget.ruta['pref_music'] ??
+                          false,
+                      onChanged: null,
+                      title: const Text("🎵 Música durante el viaje"),
+                    ),
+
+                    CheckboxListTile(
+                      value:
+                          widget.ruta['prefSmoke'] ??
+                          widget.ruta['pref_smoke'] ??
+                          false,
+                      onChanged: null,
+                      title: const Text("🚬 Fumar permitido"),
+                    ),
+                  ],
+                ),
+              ),
+
+              Divider(height: 40),
+              Column(
+                children: [
+                  SizedBox(
+                    width: double.infinity,
+                    child: ElevatedButton.icon(
+                      onPressed: isLoading ? null : confirmarLlegada,
+                      icon: Icon(Icons.check_circle, color: Colors.white),
+                      label: Text(
+                        "confirmar",
+                        style: TextStyle(fontWeight: FontWeight.bold),
+                      ),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.green,
+                        foregroundColor: Colors.white,
+                        padding: EdgeInsets.symmetric(vertical: 16),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                      ),
+                    ),
                   ),
+                  SizedBox(height: 12),
+                  SizedBox(
+                    width: double.infinity,
+                    child: OutlinedButton.icon(
+                      onPressed: isLoading ? null : reportarIncidencia,
+                      icon: Icon(
+                        Icons.warning_amber_rounded,
+                        color: Colors.orange,
+                      ),
+                      label: Text(
+                        "incidencia",
+                        style: TextStyle(color: Colors.orange),
+                      ),
+                      style: OutlinedButton.styleFrom(
+                        padding: EdgeInsets.symmetric(vertical: 16),
+                        side: BorderSide(color: Colors.orange),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                      ),
+                    ),
+                  ),
+                  SizedBox(height: 12),
+                  SizedBox(
+                    width: double.infinity,
+                    child: OutlinedButton.icon(
+                      onPressed: isLoading
+                          ? null
+                          : (esConductor ? cancelarRuta : abandonarRuta),
+                      icon: Icon(
+                        esConductor ? Icons.delete_forever : Icons.exit_to_app,
+                        color: Colors.red,
+                      ),
+                      label: Text(
+                        esConductor ? "cancelar ruta" : "abandonar ruta",
+                      ),
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: Colors.red,
+                        padding: EdgeInsets.symmetric(vertical: 16),
+                        side: BorderSide(color: Colors.red.shade200),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                      ),
+                    ),
+                  ),
+                  if (isLoading)
+                    Padding(
+                      padding: const EdgeInsets.only(top: 10),
+                      child: CircularProgressIndicator(),
+                    ),
                 ],
               ),
-            ),
-            SizedBox(height: 30),
-            ListTile(
-              contentPadding: EdgeInsets.zero,
-              leading: CircleAvatar(
-                backgroundColor: Color.fromRGBO(95, 44, 130, 0.1),
-                child: Icon(Icons.chat, color: Color(0xFF5F2C82)),
-              ),
-              title: Text(
-                "Chat del grupo",
-                style: TextStyle(fontWeight: FontWeight.bold),
-              ),
-              subtitle: Text("Habla con el conductor y pasajeros"),
-              trailing: Icon(Icons.arrow_forward_ios, size: 16),
-              onTap: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (_) =>
-                        GroupChatScreen(ruta: widget.ruta, user: widget.user),
-                  ),
-                );
-              },
-            ),
-            Divider(height: 40),
-            Spacer(),
-            Column(
-              children: [
-                SizedBox(
-                  width: double.infinity,
-                  child: ElevatedButton.icon(
-                    onPressed: isLoading ? null : confirmarLlegada,
-                    icon: Icon(Icons.check_circle, color: Colors.white),
-                    label: Text(
-                      "confirmar",
-                      style: TextStyle(fontWeight: FontWeight.bold),
-                    ),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.green,
-                      foregroundColor: Colors.white,
-                      padding: EdgeInsets.symmetric(vertical: 16),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                    ),
-                  ),
-                ),
-                SizedBox(height: 12),
-                SizedBox(
-                  width: double.infinity,
-                  child: OutlinedButton.icon(
-                    onPressed: isLoading ? null : reportarIncidencia,
-                    icon: Icon(
-                      Icons.warning_amber_rounded,
-                      color: Colors.orange,
-                    ),
-                    label: Text(
-                      "incidencia",
-                      style: TextStyle(color: Colors.orange),
-                    ),
-                    style: OutlinedButton.styleFrom(
-                      padding: EdgeInsets.symmetric(vertical: 16),
-                      side: BorderSide(color: Colors.orange),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                    ),
-                  ),
-                ),
-                SizedBox(height: 12),
-                SizedBox(
-                  width: double.infinity,
-                  child: OutlinedButton.icon(
-                    onPressed: isLoading
-                        ? null
-                        : (esConductor ? cancelarRuta : abandonarRuta),
-                    icon: Icon(
-                      esConductor ? Icons.delete_forever : Icons.exit_to_app,
-                      color: Colors.red,
-                    ),
-                    label: Text(
-                      esConductor ? "cancelar ruta" : "abandonar ruta",
-                    ),
-                    style: OutlinedButton.styleFrom(
-                      foregroundColor: Colors.red,
-                      padding: EdgeInsets.symmetric(vertical: 16),
-                      side: BorderSide(color: Colors.red.shade200),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                    ),
-                  ),
-                ),
-                if (isLoading)
-                  Padding(
-                    padding: const EdgeInsets.only(top: 10),
-                    child: CircularProgressIndicator(),
-                  ),
-              ],
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );

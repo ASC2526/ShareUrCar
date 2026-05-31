@@ -26,7 +26,6 @@ class _RouteDetailsScreenState extends State<RouteDetailsScreen> {
   @override
   void initState() {
     super.initState();
-
     cargarPrecios();
   }
 
@@ -392,6 +391,53 @@ class _RouteDetailsScreenState extends State<RouteDetailsScreen> {
     );
   }
 
+  String _formatearFechaCompleta(String? fechaIso) {
+    if (fechaIso == null) return "";
+
+    try {
+      final fecha = DateTime.parse(fechaIso);
+
+      const dias = [
+        "Lunes",
+        "Martes",
+        "Miércoles",
+        "Jueves",
+        "Viernes",
+        "Sábado",
+        "Domingo",
+      ];
+
+      return "${dias[fecha.weekday - 1]} "
+          "${fecha.day.toString().padLeft(2, '0')}/"
+          "${fecha.month.toString().padLeft(2, '0')}/"
+          "${fecha.year}";
+    } catch (_) {
+      return fechaIso;
+    }
+  }
+
+  String _obtenerFechaRelativa(String? fechaIso) {
+    if (fechaIso == null) return "";
+
+    try {
+      final fecha = DateTime.parse(fechaIso);
+      final hoy = DateTime.now();
+
+      final diff = DateTime(
+        fecha.year,
+        fecha.month,
+        fecha.day,
+      ).difference(DateTime(hoy.year, hoy.month, hoy.day)).inDays;
+
+      if (diff == 0) return "Hoy";
+      if (diff == 1) return "Mañana";
+
+      return "En $diff días";
+    } catch (_) {
+      return "";
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final lat = widget.ruta['origin_lat'] ?? 38.3452;
@@ -625,6 +671,157 @@ class _RouteDetailsScreenState extends State<RouteDetailsScreen> {
                       ),
                     ],
                   ),
+                  Container(
+                    width: double.infinity,
+                    padding: EdgeInsets.all(18),
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(14),
+                      border: Border.all(color: Colors.grey.shade200),
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          children: [
+                            Icon(Icons.info_outline, color: Color(0xFF5F2C82)),
+                            SizedBox(width: 10),
+                            Text(
+                              "Información del viaje",
+                              style: TextStyle(
+                                fontSize: 17,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                          ],
+                        ),
+
+                        SizedBox(height: 15),
+
+                        Text(
+                          "📅 ${_formatearFechaCompleta(widget.ruta['travel_date'])} · "
+                          "${_obtenerFechaRelativa(widget.ruta['travel_date'])}",
+                        ),
+
+                        SizedBox(height: 10),
+
+                        Text(
+                          widget.ruta['return_time'] != null
+                              ? "🕒 Salida: ${_formatearHora(widget.ruta['departure_time'])} · "
+                                    "Vuelta: ${_formatearHora(widget.ruta['return_time'])}"
+                              : "🕒 Salida: ${_formatearHora(widget.ruta['departure_time'])}",
+                        ),
+                      ],
+                    ),
+                  ),
+                  SizedBox(height: 25),
+                  Container(
+                    width: double.infinity,
+                    padding: EdgeInsets.all(18),
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(14),
+                      border: Border.all(color: Colors.grey.shade200),
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          children: [
+                            Icon(Icons.tune, color: Color(0xFF5F2C82)),
+                            SizedBox(width: 10),
+                            Text(
+                              "Preferencias del conductor",
+                              style: TextStyle(
+                                fontSize: 17,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                          ],
+                        ),
+
+                        SizedBox(height: 15),
+
+                        Container(
+                          width: double.infinity,
+                          padding: const EdgeInsets.all(12),
+                          margin: const EdgeInsets.only(bottom: 10),
+                          decoration: BoxDecoration(
+                            color: (widget.ruta['allowRoundTrip'] ?? false)
+                                ? Colors.green.shade50
+                                : Colors.red.shade50,
+                            borderRadius: BorderRadius.circular(12),
+                            border: Border.all(
+                              color: (widget.ruta['allowRoundTrip'] ?? false)
+                                  ? Colors.green.shade300
+                                  : Colors.red.shade300,
+                            ),
+                          ),
+                          child: Row(
+                            children: [
+                              Icon(
+                                (widget.ruta['allowRoundTrip'] ?? false)
+                                    ? Icons.swap_horiz
+                                    : Icons.block,
+                                color: (widget.ruta['allowRoundTrip'] ?? false)
+                                    ? Colors.green
+                                    : Colors.red,
+                              ),
+                              const SizedBox(width: 10),
+                              Text(
+                                (widget.ruta['allowRoundTrip'] ?? false)
+                                    ? "Ruta con ida y vuelta"
+                                    : "Solo viaje de ida",
+                                style: TextStyle(
+                                  fontWeight: FontWeight.bold,
+                                  color:
+                                      (widget.ruta['allowRoundTrip'] ?? false)
+                                      ? Colors.green.shade800
+                                      : Colors.red.shade800,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        CheckboxListTile(
+                          value:
+                              widget.ruta['prefNoTalk'] ??
+                              widget.ruta['pref_no_talk'] ??
+                              false,
+                          onChanged: null,
+                          title: const Text("😶 Viaje sin conversar"),
+                        ),
+
+                        CheckboxListTile(
+                          value:
+                              widget.ruta['prefLuggage'] ??
+                              widget.ruta['pref_luggage'] ??
+                              false,
+                          onChanged: null,
+                          title: const Text("💼 Equipaje permitido"),
+                        ),
+
+                        CheckboxListTile(
+                          value:
+                              widget.ruta['prefMusic'] ??
+                              widget.ruta['pref_music'] ??
+                              false,
+                          onChanged: null,
+                          title: const Text("🎵 Música durante el viaje"),
+                        ),
+
+                        CheckboxListTile(
+                          value:
+                              widget.ruta['prefSmoke'] ??
+                              widget.ruta['pref_smoke'] ??
+                              false,
+                          onChanged: null,
+                          title: const Text("🚬 Fumar permitido"),
+                        ),
+                      ],
+                    ),
+                  ),
+
                   SizedBox(height: 25),
 
                   Container(

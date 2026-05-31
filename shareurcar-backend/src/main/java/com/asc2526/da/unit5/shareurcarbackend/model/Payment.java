@@ -21,7 +21,6 @@ public class Payment {
     @Column(name = "id_payment")
     private Integer idPayment;
 
-    @NotNull
     @Column(name = "id_group")
     private Integer idGroup;
 
@@ -42,4 +41,7 @@ public class Payment {
 
     @Column(name = "trip_type")
     private String tripType;
+
+    @Column(name = "payment_type")
+    private String paymentType;
 }

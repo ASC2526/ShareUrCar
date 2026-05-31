@@ -18,32 +18,27 @@ public class PaymentController {
         this.service = service;
     }
 
-    // GET por grupo
     @GetMapping("/group/{groupId}")
     public List<Payment> getByGroup(@PathVariable Integer groupId) {
         return service.getByGroup(groupId);
     }
 
-    // GET por usuario
     @GetMapping("/user/{userId}")
     public List<Payment> getByUser(@PathVariable Integer userId) {
         return service.getByUser(userId);
     }
 
-    // POST crear pago
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
     public Payment create(@Valid @RequestBody Payment payment) {
         return service.create(payment);
     }
 
-    // PUT marcar como completado
     @PutMapping("/{id}/complete")
     public Payment complete(@PathVariable Integer id) {
         return service.markAsCompleted(id);
     }
 
-    // DELETE
     @DeleteMapping("/{id}")
     @ResponseStatus(HttpStatus.NO_CONTENT)
     public void delete(@PathVariable Integer id) {

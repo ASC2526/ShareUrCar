@@ -42,14 +42,13 @@ public class RouteService {
                 .orElseThrow(() -> new RouteNotFoundException(id));
     }
 
-    private void createSingleGroupForSeries(Route referenceRoute, String seriesId) {
+    private void createGroupForRoute(Route route) {
         TravelGroup group = new TravelGroup();
-        group.setIdRoute(referenceRoute.getIdRoute());
-        group.setIdDriver(referenceRoute.getIdDriver());
+        group.setIdRoute(route.getIdRoute());
+        group.setIdDriver(route.getIdDriver());
         group.setStatus("ACTIVE");
-        group.setSeriesId(seriesId);                              // <-- antes no se guardaba
-        group.setTravelDate(referenceRoute.getTravel_date());     // <-- fecha de la primera ruta
-        group.setTravelTime(referenceRoute.getDeparture_time());  // <-- hora de salida
+        group.setTravelDate(route.getTravel_date());
+        group.setTravelTime(route.getDeparture_time());
         travelGroupRepository.save(group);
     }
 
@@ -115,8 +114,8 @@ public class RouteService {
             savedRoutes.add(routeRepository.save(base));
         }
 
-        if (!savedRoutes.isEmpty()) {
-            createSingleGroupForSeries(savedRoutes.get(0), seriesId);
+        for(Route route : savedRoutes) {
+            createGroupForRoute(route);
         }
 
         return savedRoutes;
@@ -188,8 +187,8 @@ public class RouteService {
         for(Route route : routes) {
             User driver = userRepository.findUserByIdUser(route.getIdDriver()).orElseThrow();
             Driver driverCar = driverRepository.findByIdDriver(route.getIdDriver()).orElse(null);
-            Map<String,Object> map = new java.util.HashMap<>();
 
+            Map<String,Object> map = new java.util.HashMap<>();
             map.put("idRoute",route.getIdRoute());
             map.put("idDriver",route.getIdDriver());
             map.put("origin",route.getOrigin());
@@ -222,7 +221,6 @@ public class RouteService {
     }
     @Transactional
     public void deleteRoute(Integer id) {
-
         routeRepository.findById(id).orElseThrow();
         TravelGroup group = travelGroupRepository.findByIdRoute(id).orElse(null);
         if(group != null) {
@@ -324,26 +322,27 @@ public class RouteService {
             throw new IllegalArgumentException("La ruta o el usuario no pueden ser nulos");
         }
 
-        Route route = routeRepository.findById(routeId)
-                .orElseThrow(() -> new RuntimeException("La ruta no existe"));
-        User user = userRepository.findUserByIdUser(userId)
-                .orElseThrow(() -> new RuntimeException("El usuario no existe"));
+        Route route = routeRepository.findById(routeId).orElseThrow(() -> new RuntimeException("La ruta no existe"));
+        User user = userRepository.findUserByIdUser(userId).orElseThrow(() -> new RuntimeException("El usuario no existe"));
 
         if (route.getAvailable_seats() <= 0) {
             throw new NoAvailableSeatsException("Lo siento, ya no quedan plazas libres");
         }
+
         if (route.getIdDriver().equals(userId)) {
             throw new YourOwnRouteException("No puedes unirte a tu propia ruta como pasajero");
         }
+
         if (route.getPassengers().contains(user)) {
             throw new AlreadyExistsException("Ya estás unido a esta ruta");
         }
+
         if (roundTrip && !Boolean.TRUE.equals(route.getAllowRoundTrip())) {
             throw new RuntimeException("Esta ruta no permite ida y vuelta");
         }
 
-        int pasajeros = route.getPassengers().size() + 1;
-        double amount = calculateTripPrice(route, pasajeros);
+        double amount = calculateTripPrice(route, 1);
+
         if (roundTrip) {
             amount *= 1.9;
         }
@@ -351,18 +350,13 @@ public class RouteService {
         double balance = user.getBalance() != null ? user.getBalance() : 0.0;
         double held = user.getHeldBalance() != null ? user.getHeldBalance() : 0.0;
         double disponible = balance - held;
+
         if (disponible < amount) {
             throw new RuntimeException("Saldo insuficiente");
         }
 
-        String seriesId = route.getSeriesId();
-        TravelGroup group = travelGroupRepository.findBySeriesId(seriesId)
-                .orElseGet(() -> travelGroupRepository.findByIdRoute(routeId)
-                        .orElseThrow(() -> new RuntimeException("Grupo no encontrado")));
-
-        boolean yaEnGrupo = groupPassengerRepository
-                .findByIdGroupAndIdUser(group.getIdGroup(), userId)
-                .isPresent();
+        TravelGroup group = travelGroupRepository.findByIdRoute(routeId).orElseThrow(() -> new RuntimeException("Grupo no encontrado"));
+        boolean yaEnGrupo = groupPassengerRepository.findByIdGroupAndIdUser(group.getIdGroup(), userId).isPresent();
 
         if (!yaEnGrupo) {
             GroupPassenger passenger = new GroupPassenger();
@@ -380,19 +374,14 @@ public class RouteService {
         payment.setPaymentStatus("PENDING");
         payment.setTripType(roundTrip ? "ROUND_TRIP" : "ONE_WAY");
         payment.setCreatedAt(LocalDateTime.now());
-        paymentRepository.save(payment);
+        payment.setPaymentType("TRIP_PAYMENT");
 
+        paymentRepository.save(payment);
         user.setHeldBalance(held + amount);
         userRepository.save(user);
-
-        List<Route> todasLasRutas = routeRepository.findAllBySeriesId(seriesId);
-        for (Route r : todasLasRutas) {
-            if (r.getAvailable_seats() > 0) {
-                r.getPassengers().add(user);
-                r.setAvailable_seats(r.getAvailable_seats() - 1);
-                routeRepository.save(r);
-            }
-        }
+        route.getPassengers().add(user);
+        route.setAvailable_seats(route.getAvailable_seats() - 1);
+        routeRepository.save(route);
     }
 
     @Transactional
@@ -420,7 +409,9 @@ public class RouteService {
 
                 user.setHeldBalance(Math.max(0, held - payment.getAmount()));
                 userRepository.save(user);
-                paymentRepository.delete(payment);
+                payment.setPaymentType("REFUND");
+                payment.setPaymentStatus("REFUNDED");
+                paymentRepository.save(payment);
             }
         }
         route.getPassengers().remove(user);
@@ -497,27 +488,47 @@ public class RouteService {
         int totalPassengers = route.getPassengers().size();
         double totalDriverAmount = 0.0;
         double finalPrice = calculateTripPrice(route, totalPassengers);
-        for(Payment payment : payments) {
 
-            if("COMPLETED".equals(payment.getPaymentStatus())) {
+        for (Payment payment : payments) {
+            if (!"TRIP_PAYMENT".equals(payment.getPaymentType()) || "COMPLETED".equals(payment.getPaymentStatus())) {
                 continue;
             }
             User passenger = userRepository.findUserByIdUser(payment.getIdUser()).orElseThrow();
-            double paid = payment.getAmount();
-            double realPrice = finalPrice;
+            double paid = Math.round(payment.getAmount() * 100.0) / 100.0;
 
-            if("ROUND_TRIP".equals(payment.getTripType())) {
+            double realPrice = Math.round(finalPrice * 100.0) / 100.0;
+
+            if ("ROUND_TRIP".equals(payment.getTripType())) {
                 realPrice *= 1.9;
             }
+
+            double difference = Math.round((paid - realPrice) * 100.0) / 100.0;
             double held = passenger.getHeldBalance() != null ? passenger.getHeldBalance() : 0.0;
             double balance = passenger.getBalance() != null ? passenger.getBalance() : 0.0;
             passenger.setHeldBalance(Math.max(0, held - paid));
-            passenger.setBalance(Math.max(0, balance - realPrice));
 
+            double finalBalance = balance - realPrice;
+
+            if (difference > 0) {
+                finalBalance += difference;
+            }
+
+            passenger.setBalance(finalBalance);
             payment.setAmount(realPrice);
             payment.setPaymentStatus("COMPLETED");
             paymentRepository.save(payment);
             userRepository.save(passenger);
+
+            if (difference > 0) {
+                Payment adjustment = new Payment();
+                adjustment.setIdUser(passenger.getIdUser());
+                adjustment.setIdGroup(group.getIdGroup());
+                adjustment.setAmount(difference);
+                adjustment.setPaymentStatus("COMPLETED");
+                adjustment.setPaymentType("PRICE_ADJUSTMENT");
+                adjustment.setCreatedAt(LocalDateTime.now());
+                paymentRepository.save(adjustment);
+            }
             totalDriverAmount += realPrice;
         }
 
@@ -525,6 +536,15 @@ public class RouteService {
         double driverBalance = driver.getBalance() != null ? driver.getBalance() : 0.0;
         driver.setBalance(driverBalance + totalDriverAmount);
         userRepository.save(driver);
+
+        Payment income = new Payment();
+        income.setIdUser(driver.getIdUser());
+        income.setIdGroup(group.getIdGroup());
+        income.setAmount(totalDriverAmount);
+        income.setPaymentStatus("COMPLETED");
+        income.setPaymentType("TRIP_INCOME");
+        income.setCreatedAt(LocalDateTime.now());
+        paymentRepository.save(income);
     }
 
     private boolean checkAllConfirmed(Route route, TravelGroup group) {
@@ -544,8 +564,7 @@ public class RouteService {
 
     public double calculatePrice(Integer routeId) {
         Route route = routeRepository.findById(routeId).orElseThrow(() -> new RuntimeException("Ruta no encontrada"));
-        int passengers = route.getPassengers().size() + 1;
-        return calculateTripPrice(route, passengers);
+        return calculateTripPrice(route, 1);
     }
 
 }

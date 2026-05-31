@@ -73,7 +73,6 @@ public class Route {
     @Column(name = "allow_round_trip")
     private Boolean allowRoundTrip = false;
 
-    // preferencias
     @Column(name = "pref_no_talk")
     private Boolean prefNoTalk;
 
@@ -100,7 +99,4 @@ public class Route {
 
     @Column(name = "series_id")
     private String seriesId;
-
-
-
 }

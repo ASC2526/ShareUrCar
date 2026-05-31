@@ -38,7 +38,6 @@ class _SearchRouteScreenState extends State<SearchRouteScreen> {
   }
 
   void buscarRutas() async {
-    // Validamos que se hayan elegido opciones de la lista con coordenadas
     if (selectedOriginLat == null || selectedDestLat == null) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
@@ -53,45 +52,6 @@ class _SearchRouteScreenState extends State<SearchRouteScreen> {
 
     setState(() => isLoading = true);
 
-    // si no pulsó sugerencia, geocodificamos el texto escrito en origen y destino
-    if (selectedOriginLat == null) {
-      final fallbackOrigen = await ApiService.getAddressSuggestions(
-        originController.text,
-      );
-      if (fallbackOrigen.isNotEmpty) {
-        selectedOriginLat = fallbackOrigen[0]['lat'];
-        selectedOriginLng = fallbackOrigen[0]['lng'];
-      } else {
-        setState(() => isLoading = false);
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text("No se encuentra el Origen en Alicante."),
-            backgroundColor: Colors.orange,
-          ),
-        );
-        return;
-      }
-    }
-
-    if (selectedDestLat == null) {
-      final fallbackDestino = await ApiService.getAddressSuggestions(
-        destinationController.text,
-      );
-      if (fallbackDestino.isNotEmpty) {
-        selectedDestLat = fallbackDestino[0]['lat'];
-        selectedDestLng = fallbackDestino[0]['lng'];
-      } else {
-        setState(() => isLoading = false);
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text("No se encuentra el Destino en Alicante."),
-            backgroundColor: Colors.orange,
-          ),
-        );
-        return;
-      }
-    }
-
     try {
       final resultados = await ApiService.searchRoutes(
         selectedOriginLat!,
@@ -100,26 +60,22 @@ class _SearchRouteScreenState extends State<SearchRouteScreen> {
         selectedDestLng!,
       );
 
-      final Map<String, dynamic> rutasAgrupadas = {};
-      for (var r in resultados) {
-        String driver = (r['idDriver'] ?? r['id_driver']).toString();
-        String origin = r['origin'].toString();
-        String dest = r['destination'].toString();
-        String start =
-            r['start_date']?.toString() ?? r['travel_date'].toString();
+      resultados.sort((a, b) {
+        DateTime fechaA = DateTime.parse(a['travel_date'].toString());
+        DateTime fechaB = DateTime.parse(b['travel_date'].toString());
 
-        String key = "${driver}_${origin}_${dest}_$start";
-
-        if (!rutasAgrupadas.containsKey(key)) {
-          rutasAgrupadas[key] = r;
-        }
-      }
-
-      setState(() {
-        rutasEncontradas = rutasAgrupadas.values.toList();
+        return fechaA.compareTo(fechaB);
       });
 
-      if (mounted) _mostrarResultadosBottomSheet();
+      setState(() {
+        rutasEncontradas = resultados
+            .where((r) => r['status'] != 'COMPLETED')
+            .toList();
+      });
+
+      if (mounted) {
+        _mostrarResultadosBottomSheet();
+      }
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -130,7 +86,9 @@ class _SearchRouteScreenState extends State<SearchRouteScreen> {
         );
       }
     } finally {
-      if (mounted) setState(() => isLoading = false);
+      if (mounted) {
+        setState(() => isLoading = false);
+      }
     }
   }
 
@@ -144,6 +102,10 @@ class _SearchRouteScreenState extends State<SearchRouteScreen> {
     String formatearHora(String hora) {
       return hora.length >= 5 ? hora.substring(0, 5) : hora;
     }
+
+    final rutasVisibles = rutasEncontradas
+        .where((r) => r['status'] != 'COMPLETED')
+        .toList();
 
     showModalBottomSheet(
       context: context,
@@ -173,7 +135,7 @@ class _SearchRouteScreenState extends State<SearchRouteScreen> {
               ),
 
               Text(
-                "Rutas disponibles (${rutasEncontradas.length})",
+                "Rutas disponibles (${rutasVisibles.length})",
                 style: TextStyle(
                   fontSize: 20,
                   fontWeight: FontWeight.bold,
@@ -195,7 +157,7 @@ class _SearchRouteScreenState extends State<SearchRouteScreen> {
                       child: ListView.builder(
                         itemCount: rutasEncontradas.length,
                         itemBuilder: (context, index) {
-                          final ruta = rutasEncontradas[index];
+                          final ruta = rutasVisibles[index];
                           final currentUserId =
                               widget.user['idUser'] ??
                               widget.user['id_user'] ??
@@ -233,26 +195,48 @@ class _SearchRouteScreenState extends State<SearchRouteScreen> {
                                     mainAxisAlignment:
                                         MainAxisAlignment.spaceBetween,
                                     children: [
-                                      Row(
+                                      Column(
+                                        crossAxisAlignment:
+                                            CrossAxisAlignment.start,
                                         children: [
-                                          Icon(
-                                            Icons.access_time,
-                                            size: 20,
-                                            color: Color(0xFF5F2C82),
-                                          ),
-                                          SizedBox(width: 8),
                                           Text(
-                                            formatearHora(
-                                              ruta['departure_time'].toString(),
-                                            ),
+                                            "${formatearFechaCompleta(ruta['travel_date'])} · "
+                                            "${obtenerFechaRelativa(ruta['travel_date'])}",
                                             style: TextStyle(
-                                              fontSize: 18,
-                                              fontWeight: FontWeight.bold,
-                                              color: Colors.black87,
+                                              fontSize: 13,
+                                              color: Colors.grey.shade600,
+                                              fontWeight: FontWeight.w500,
                                             ),
+                                          ),
+
+                                          SizedBox(height: 6),
+
+                                          Row(
+                                            children: [
+                                              Icon(
+                                                Icons.access_time,
+                                                size: 20,
+                                                color: Color(0xFF5F2C82),
+                                              ),
+
+                                              SizedBox(width: 8),
+
+                                              Text(
+                                                formatearHora(
+                                                  ruta['departure_time']
+                                                      .toString(),
+                                                ),
+                                                style: TextStyle(
+                                                  fontSize: 18,
+                                                  fontWeight: FontWeight.bold,
+                                                  color: Colors.black87,
+                                                ),
+                                              ),
+                                            ],
                                           ),
                                         ],
                                       ),
+
                                       Container(
                                         padding: EdgeInsets.symmetric(
                                           horizontal: 10,
@@ -271,7 +255,9 @@ class _SearchRouteScreenState extends State<SearchRouteScreen> {
                                               size: 16,
                                               color: Colors.green.shade700,
                                             ),
+
                                             SizedBox(width: 4),
+
                                             Text(
                                               "${ruta['available_seats']} libres",
                                               style: TextStyle(
@@ -287,7 +273,6 @@ class _SearchRouteScreenState extends State<SearchRouteScreen> {
                                   ),
 
                                   SizedBox(height: 20),
-
                                   // origen y Destino
                                   Row(
                                     children: [
@@ -435,7 +420,7 @@ class _SearchRouteScreenState extends State<SearchRouteScreen> {
                                                 radius: 16,
                                                 backgroundColor: Color(
                                                   0xFF5F2C82,
-                                                ).withValues(),
+                                                ),
                                                 child: Icon(
                                                   Icons.person,
                                                   size: 18,
@@ -537,6 +522,51 @@ class _SearchRouteScreenState extends State<SearchRouteScreen> {
         );
       },
     );
+  }
+
+  String obtenerFechaRelativa(String? fechaIso) {
+    if (fechaIso == null) return "Hoy";
+
+    try {
+      final fechaRuta = DateTime.parse(fechaIso);
+      final hoy = DateTime.now();
+      final hoyMN = DateTime(hoy.year, hoy.month, hoy.day);
+      final rutaMN = DateTime(fechaRuta.year, fechaRuta.month, fechaRuta.day);
+      final diff = rutaMN.difference(hoyMN).inDays;
+
+      if (diff == 0) return "Hoy";
+      if (diff == 1) return "Mañana";
+      if (diff > 1) return "En $diff días";
+
+      return "";
+    } catch (_) {
+      return "";
+    }
+  }
+
+  String formatearFechaCompleta(String? fechaIso) {
+    if (fechaIso == null) return "";
+
+    try {
+      final fecha = DateTime.parse(fechaIso);
+
+      const dias = [
+        "Lunes",
+        "Martes",
+        "Miércoles",
+        "Jueves",
+        "Viernes",
+        "Sábado",
+        "Domingo",
+      ];
+
+      return "${dias[fecha.weekday - 1]} "
+          "${fecha.day.toString().padLeft(2, '0')}/"
+          "${fecha.month.toString().padLeft(2, '0')}/"
+          "${fecha.year}";
+    } catch (_) {
+      return "";
+    }
   }
 
   @override
