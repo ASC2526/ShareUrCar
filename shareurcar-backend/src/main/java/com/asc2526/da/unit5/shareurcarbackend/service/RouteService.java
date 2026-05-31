@@ -207,8 +207,7 @@ public class RouteService {
     public Map<String, Object> joinRoutes(List<Integer> routeIds, Integer userId, boolean roundTrip) {
         if (routeIds == null || routeIds.isEmpty()) throw new IllegalArgumentException("No se han seleccionado rutas");
 
-        User user = userRepository.findUserByIdUser(userId)
-                .orElseThrow(() -> new RuntimeException("El usuario no existe"));
+        User user = userRepository.findUserByIdUser(userId).orElseThrow(() -> new RuntimeException("El usuario no existe"));
 
         List<Route> joinable = new ArrayList<>();
         double totalAmount = 0.0;
@@ -272,19 +271,19 @@ public class RouteService {
                 .toList();
 
                 payments.forEach(p -> {
-                user.setHeldBalance(Math.max(0, held(user) - p.getAmount()));
-                userRepository.save(user);
-                p.setPaymentStatus("CANCELLED");
-                paymentRepository.save(p);
+                    user.setHeldBalance(round2(Math.max(0, held(user) - p.getAmount())));
+                    userRepository.save(user);
+                    p.setPaymentStatus("CANCELLED");
+                    paymentRepository.save(p);
 
-                Payment refund = new Payment();
-                refund.setIdUser(userId);
-                refund.setIdGroup(p.getIdGroup());
-                refund.setAmount(p.getAmount());
-                refund.setPaymentStatus("COMPLETED");
-                refund.setPaymentType("REFUND");
-                refund.setCreatedAt(LocalDateTime.now());
-                paymentRepository.save(refund);
+                    Payment refund = new Payment();
+                    refund.setIdUser(userId);
+                    refund.setIdGroup(p.getIdGroup());
+                    refund.setAmount(p.getAmount());
+                    refund.setPaymentStatus("COMPLETED");
+                    refund.setPaymentType("REFUND");
+                    refund.setCreatedAt(LocalDateTime.now());
+                    paymentRepository.save(refund);
             });
 
         route.getPassengers().remove(user);
@@ -310,8 +309,8 @@ public class RouteService {
         paymentRepository.findByGroup(group.getIdGroup()).forEach(payment -> {
             if ("COMPLETED".equals(payment.getPaymentStatus())) return;
             userRepository.findUserByIdUser(payment.getIdUser()).ifPresent(passenger -> {
-                passenger.setHeldBalance(Math.max(0, held(passenger) - payment.getAmount()));
-                passenger.setBalance(bal(passenger) + payment.getAmount());
+                passenger.setHeldBalance(round2(Math.max(0, held(passenger) - payment.getAmount())));
+                passenger.setBalance(round2(bal(passenger) + payment.getAmount()));
                 userRepository.save(passenger);
             });
             payment.setPaymentStatus("CANCELLED");
@@ -369,8 +368,13 @@ public class RouteService {
             double realPrice = round2("ROUND_TRIP".equals(payment.getTripType()) ? finalPrice * 1.9 : finalPrice);
             double difference = round2(paid - realPrice);
 
-            passenger.setHeldBalance(Math.max(0, held(passenger) - paid));
-            passenger.setBalance(bal(passenger) - realPrice + (difference > 0 ? difference : 0));
+            passenger.setHeldBalance(
+                    round2(
+                            Math.max(0, held(passenger) - paid)
+                    )
+            );
+
+            passenger.setBalance(round2(bal(passenger) - realPrice + (difference > 0 ? difference : 0)));
             payment.setAmount(realPrice);
             payment.setPaymentStatus("COMPLETED");
             paymentRepository.save(payment);
@@ -390,7 +394,7 @@ public class RouteService {
         }
 
         User driver = userRepository.findUserByIdUser(route.getIdDriver()).orElseThrow();
-        driver.setBalance(bal(driver) + totalDriverAmount);
+        driver.setBalance(round2(bal(driver) + totalDriverAmount));
         userRepository.save(driver);
 
         Payment income = new Payment();
@@ -459,7 +463,7 @@ public class RouteService {
 
     private double priceFor(Route route, boolean roundTrip) {
         double p = calculateTripPrice(route, 1);
-        return roundTrip ? p * 1.9 : p;
+        return round2(roundTrip ? p * 1.9 : p);
     }
 
     private double calculateTripPrice(Route route, int passengers) {
@@ -508,7 +512,7 @@ public class RouteService {
 
     // crear grupo + pago para un pasajero nuevo
     private void joinSingleRouteInternal(Route route, User user, boolean roundTrip) {
-        double amount = priceFor(route, roundTrip);
+        double amount = round2(priceFor(route, roundTrip));
 
         TravelGroup group = travelGroupRepository.findByIdRoute(route.getIdRoute())
                 .orElseGet(() -> {
@@ -533,14 +537,14 @@ public class RouteService {
         Payment payment = new Payment();
         payment.setIdGroup(group.getIdGroup());
         payment.setIdUser(user.getIdUser());
-        payment.setAmount(amount);
+        payment.setAmount(round2(amount));
         payment.setPaymentStatus("PENDING");
         payment.setTripType(roundTrip ? "ROUND_TRIP" : "ONE_WAY");
         payment.setCreatedAt(LocalDateTime.now());
         payment.setPaymentType("TRIP_PAYMENT");
         paymentRepository.save(payment);
 
-        user.setHeldBalance(held(user) + amount);
+        user.setHeldBalance(round2(held(user) + amount));
         userRepository.save(user);
 
         route.getPassengers().add(user);

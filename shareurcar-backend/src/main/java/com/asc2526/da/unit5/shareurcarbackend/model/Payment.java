@@ -30,6 +30,7 @@ public class Payment {
 
     @NotNull
     @Positive
+    @Column(name = "amount")
     private Double amount;
 
     @NotBlank
