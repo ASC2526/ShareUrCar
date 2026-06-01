@@ -80,6 +80,10 @@ public class MessageService {
 
             List<Message> messages = messageRepository.findByGroup(groupId);
             String lastMessage = messages.isEmpty() ? "" : messages.get(messages.size() - 1).getText();
+            String lastMessageAt = messages.isEmpty() ? null
+                    : messages.get(messages.size() - 1).getSentAt() != null
+                    ? messages.get(messages.size() - 1).getSentAt().toString()
+                    : null;
 
             Map<String, Object> chatMap = new HashMap<>();
             chatMap.put("idGroup",     groupId);
@@ -94,14 +98,19 @@ public class MessageService {
             chatMap.put("seriesId",    route.getSeriesId());
             chatMap.put("status",      route.getStatus());
             chatMap.put("ruta",        RouteMapper.toMap(route, driverName, maxSeats));
+            chatMap.put("lastMessageAt", lastMessageAt);
 
             result.add(chatMap);
         }
 
-        result.sort(Comparator.comparing(
-                c -> c.get("travel_date") != null ? c.get("travel_date").toString() : "9999",
-                Comparator.nullsLast(Comparator.naturalOrder())
-        ));
+        result.sort((a, b) -> {
+            String dA = (String) a.get("lastMessageAt");
+            String dB = (String) b.get("lastMessageAt");
+            if (dA == null && dB == null) return 0;
+            if (dA == null) return 1;
+            if (dB == null) return -1;
+            return dB.compareTo(dA);
+        });
 
         return result;
     }

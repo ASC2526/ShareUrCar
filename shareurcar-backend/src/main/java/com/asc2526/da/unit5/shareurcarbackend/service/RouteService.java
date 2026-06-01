@@ -5,7 +5,7 @@ import com.asc2526.da.unit5.shareurcarbackend.exception.*;
 import com.asc2526.da.unit5.shareurcarbackend.model.*;
 import com.asc2526.da.unit5.shareurcarbackend.repository.*;
 import com.asc2526.da.unit5.shareurcarbackend.util.RouteMapper;
-import jakarta.transaction.Transactional;
+import org.springframework.transaction.annotation.Transactional;
 import lombok.RequiredArgsConstructor;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
@@ -191,7 +191,9 @@ public class RouteService {
 
         if (route.getAvailable_seats() <= 0) throw new NoAvailableSeatsException("Ya no quedan plazas");
         if (route.getIdDriver().equals(userId)) throw new YourOwnRouteException("No puedes unirte a tu propia ruta");
-        if (route.getPassengers().contains(user)) throw new AlreadyExistsException("Ya estás unido a esta ruta");
+        boolean yaUnido = route.getPassengers().stream()
+                .anyMatch(p -> p.getIdUser().equals(userId));
+        if (yaUnido) throw new AlreadyExistsException("Ya estás unido a esta ruta");
         if (roundTrip && !Boolean.TRUE.equals(route.getAllowRoundTrip())) {
             throw new RuntimeException("Esta ruta no permite ida y vuelta");
         }
@@ -216,7 +218,9 @@ public class RouteService {
             Route route = routeRepository.findById(routeId).orElse(null);
             if (route == null || "COMPLETED".equals(route.getStatus())) continue;
             if (route.getIdDriver().equals(userId)) continue;
-            if (route.getPassengers().contains(user)) continue;
+            boolean yaUnido = route.getPassengers().stream()
+                    .anyMatch(p -> p.getIdUser().equals(userId));
+            if (yaUnido) continue;
             if (route.getAvailable_seats() <= 0) continue;
             if (roundTrip && !Boolean.TRUE.equals(route.getAllowRoundTrip())) continue;
 
@@ -258,7 +262,9 @@ public class RouteService {
         User user = userRepository.findUserByIdUser(userId)
                 .orElseThrow(() -> new RuntimeException("El usuario no existe"));
         if (route.getIdDriver().equals(userId)) throw new RuntimeException("Eres el conductor, debes cancelar la ruta entera");
-        if (!route.getPassengers().contains(user)) throw new RuntimeException("No estás unido a esta ruta");
+        boolean estaEnRuta = route.getPassengers().stream()
+                .anyMatch(p -> p.getIdUser().equals(userId));
+        if (!estaEnRuta) throw new RuntimeException("No estás unido a esta ruta");
 
         TravelGroup group = travelGroupRepository.findByIdRoute(routeId).orElseThrow();
         GroupPassenger gp = groupPassengerRepository.findByIdGroupAndIdUser(group.getIdGroup(), userId).orElseThrow();
@@ -286,7 +292,7 @@ public class RouteService {
                     paymentRepository.save(refund);
             });
 
-        route.getPassengers().remove(user);
+        route.getPassengers().removeIf(p -> p.getIdUser().equals(userId));
         route.setAvailable_seats(route.getAvailable_seats() + 1);
         groupPassengerRepository.delete(gp);
         routeRepository.save(route);
@@ -326,6 +332,14 @@ public class RouteService {
 
         TravelGroup group = travelGroupRepository.findByIdRoute(routeId)
                 .orElseThrow(() -> new RuntimeException("No hay grupo asociado a esta ruta"));
+
+        if (route.getIdDriver().equals(userId)) {
+            List<GroupPassenger> pasajeros = groupPassengerRepository.findByIdGroup(group.getIdGroup());
+            if (pasajeros.isEmpty()) {
+                throw new RuntimeException("No puedes confirmar el viaje si todavía no hay pasajeros.");
+            }
+            route.setDriverConfirmed(true);
+        }
 
         if (route.getIdDriver().equals(userId)) {
             route.setDriverConfirmed(true);

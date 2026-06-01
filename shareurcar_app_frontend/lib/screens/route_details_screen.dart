@@ -302,7 +302,7 @@ class _RouteDetailsScreenState extends State<RouteDetailsScreen> {
                         ),
                         child: SwitchListTile(
                           value: localJoinSeries,
-                          activeColor: const Color(0xFF5F2C82),
+                          activeThumbColor: const Color(0xFF5F2C82),
                           title: const Text(
                             "Unirme a toda la serie",
                             style: TextStyle(fontWeight: FontWeight.bold),

@@ -129,17 +129,7 @@ class _PaymentsScreenState extends State<PaymentsScreen> {
   // interpreta un pago y devuelve título, icono, color y signo
   _PaymentDisplay _displayFor(Map payment) {
     final type = payment['paymentType'] ?? '';
-    final status = payment['paymentStatus'] ?? '';
     final amount = (payment['amount'] ?? 0).toDouble();
-
-    if (type == 'TRIP_PAYMENT' && status == 'CANCELLED') {
-      return _PaymentDisplay(
-        title: "Reembolso (viaje cancelado)",
-        amount: "+${amount.toStringAsFixed(2)} €",
-        icon: Icons.reply,
-        color: Colors.blue,
-      );
-    }
 
     switch (type) {
       case 'DEPOSIT':
@@ -172,7 +162,7 @@ class _PaymentsScreenState extends State<PaymentsScreen> {
         );
       case 'REFUND':
         return _PaymentDisplay(
-          title: "Reembolso",
+          title: "Reembolso (viaje cancelado)",
           amount: "+${amount.toStringAsFixed(2)} €",
           icon: Icons.reply,
           color: Colors.blue,

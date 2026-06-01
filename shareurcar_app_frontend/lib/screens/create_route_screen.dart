@@ -388,7 +388,7 @@ class _CreateRouteScreenState extends State<CreateRouteScreen> {
                   "carColor": colorController.text.trim(),
                 });
                 if (!mounted) return;
-                Navigator.pop(context);
+                Navigator.pop(context, true);
                 ScaffoldMessenger.of(context).showSnackBar(
                   SnackBar(
                     content: Text(

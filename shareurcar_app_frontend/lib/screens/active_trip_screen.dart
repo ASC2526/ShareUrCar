@@ -478,6 +478,8 @@ class _ActiveTripScreenState extends State<ActiveTripScreen> {
   }
 
   Widget _buildAcciones() {
+    final listaPasajeros = widget.ruta['passengers'] as List? ?? [];
+    final bool noHayPasajeros = listaPasajeros.isEmpty;
     if (_incidenteReportado) {
       return Column(
         children: [
@@ -575,7 +577,9 @@ class _ActiveTripScreenState extends State<ActiveTripScreen> {
           SizedBox(
             width: double.infinity,
             child: ElevatedButton.icon(
-              onPressed: confirmarLlegada,
+              onPressed: (_esConductor && noHayPasajeros)
+                  ? null
+                  : confirmarLlegada,
               icon: const Icon(Icons.check_circle, color: Colors.white),
               label: Text(
                 _esConductor

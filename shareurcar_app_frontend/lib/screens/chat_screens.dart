@@ -16,6 +16,7 @@ class ChatsScreen extends StatefulWidget {
 class _ChatsScreenState extends State<ChatsScreen> {
   List _todosLosChats = [];
   bool isLoading = true;
+  final Set<int> _visitedGroups = {};
 
   @override
   void initState() {
@@ -246,7 +247,23 @@ class _ChatsScreenState extends State<ChatsScreen> {
     );
   }
 
+  String _formatearHoraTimestamp(String? ts) {
+    if (ts == null) return "";
+    try {
+      final dt = DateTime.parse(ts);
+      final now = DateTime.now();
+      if (dt.year == now.year && dt.month == now.month && dt.day == now.day) {
+        return "${dt.hour.toString().padLeft(2, '0')}:${dt.minute.toString().padLeft(2, '0')}";
+      }
+      return "${dt.day.toString().padLeft(2, '0')}/${dt.month.toString().padLeft(2, '0')}";
+    } catch (_) {
+      return "";
+    }
+  }
+
   Widget _buildChatCard(Map chat) {
+    final String? lastMessageAt = chat['lastMessageAt']?.toString();
+    final String horaMsg = _formatearHoraTimestamp(lastMessageAt);
     final destino = chat['destination'] ?? 'Destino';
     final origin = chat['origin'] ?? '';
     final lastMessage = chat['lastMessage'] ?? '';
@@ -255,6 +272,13 @@ class _ChatsScreenState extends State<ChatsScreen> {
     final driverName = chat['driverName'] ?? 'Conductor';
     final colorBadge = _colorBadge(chat['travel_date']?.toString());
     final ruta = chat['ruta'];
+    final int? groupId = chat['idGroup'] is int
+        ? chat['idGroup'] as int
+        : int.tryParse(chat['idGroup']?.toString() ?? '');
+    final bool esNuevo =
+        groupId != null &&
+        !_visitedGroups.contains(groupId) &&
+        lastMessage.isNotEmpty;
 
     return Container(
       margin: EdgeInsets.only(bottom: 15),
@@ -277,6 +301,7 @@ class _ChatsScreenState extends State<ChatsScreen> {
           borderRadius: BorderRadius.circular(18),
           onTap: () {
             if (ruta == null) return;
+            if (groupId != null) setState(() => _visitedGroups.add(groupId));
             Navigator.push(
               context,
               MaterialPageRoute(
@@ -321,23 +346,41 @@ class _ChatsScreenState extends State<ChatsScreen> {
                             ),
                           ),
                           if (fechaRelativa.isNotEmpty)
-                            Container(
-                              padding: EdgeInsets.symmetric(
-                                horizontal: 10,
-                                vertical: 4,
-                              ),
-                              decoration: BoxDecoration(
-                                color: colorBadge,
-                                borderRadius: BorderRadius.circular(12),
-                              ),
-                              child: Text(
-                                fechaRelativa,
-                                style: TextStyle(
-                                  color: Colors.white,
-                                  fontSize: 11,
-                                  fontWeight: FontWeight.bold,
-                                ),
-                              ),
+                            Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                if (esNuevo)
+                                  Container(
+                                    width: 9,
+                                    height: 9,
+                                    margin: const EdgeInsets.only(right: 6),
+                                    decoration: const BoxDecoration(
+                                      color: Colors.blue,
+                                      shape: BoxShape.circle,
+                                    ),
+                                  ),
+                                if (fechaRelativa.isNotEmpty)
+                                  Container(
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: 10,
+                                      vertical: 4,
+                                    ),
+                                    decoration: BoxDecoration(
+                                      color: colorBadge,
+                                      borderRadius: BorderRadius.circular(12),
+                                    ),
+                                    child: Text(
+                                      horaMsg.isNotEmpty
+                                          ? horaMsg
+                                          : fechaRelativa,
+                                      style: const TextStyle(
+                                        color: Colors.white,
+                                        fontSize: 11,
+                                        fontWeight: FontWeight.bold,
+                                      ),
+                                    ),
+                                  ),
+                              ],
                             ),
                         ],
                       ),

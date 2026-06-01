@@ -2,7 +2,6 @@ package com.asc2526.da.unit5.shareurcarbackend.service;
 
 import com.asc2526.da.unit5.shareurcarbackend.model.*;
 import com.asc2526.da.unit5.shareurcarbackend.repository.*;
-import org.springframework.context.annotation.Lazy;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -16,20 +15,18 @@ public class NotificationService {
     private final RouteRepository routeRepository;
     private final TravelGroupRepository travelGroupRepository;
     private final GroupPassengerRepository groupPassengerRepository;
-    private final RouteService routeService;
 
     public NotificationService(NotificationRepository notificationRepository,
                                UserRepository userRepository,
                                RouteRepository routeRepository,
                                TravelGroupRepository travelGroupRepository,
-                               GroupPassengerRepository groupPassengerRepository,
-                               @Lazy RouteService routeService) {
+                               GroupPassengerRepository groupPassengerRepository
+                               ) {
         this.notificationRepository = notificationRepository;
         this.userRepository = userRepository;
         this.routeRepository = routeRepository;
         this.travelGroupRepository = travelGroupRepository;
         this.groupPassengerRepository = groupPassengerRepository;
-        this.routeService = routeService;
     }
 
     // crear notificación

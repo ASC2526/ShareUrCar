@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:shareurcar_app_frontend/screens/edit_profile_screen.dart';
-import 'package:shareurcar_app_frontend/screens/wallet_screen.dart';
 import '../services/api_service.dart';
 
 class ProfileScreen extends StatefulWidget {
@@ -25,6 +24,15 @@ class _ProfileScreenState extends State<ProfileScreen> {
     super.initState();
     currentUser = widget.user;
     _cargarDatosPerfil();
+  }
+
+  @override
+  void didUpdateWidget(covariant ProfileScreen oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.user != widget.user) {
+      setState(() => currentUser = widget.user);
+      _cargarDatosPerfil();
+    }
   }
 
   Future<void> _refreshUserData() async {
@@ -299,88 +307,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     ],
                   ),
                 ],
-              ),
-            ),
-          ),
-
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 20),
-
-            child: GestureDetector(
-              onTap: () async {
-                await Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (_) => WalletScreen(user: currentUser),
-                  ),
-                );
-                await _refreshUserData();
-              },
-
-              child: Container(
-                padding: EdgeInsets.all(18),
-
-                decoration: BoxDecoration(
-                  gradient: LinearGradient(
-                    colors: [Color(0xFF49A09D), Color(0xFF5F2C82)],
-                  ),
-
-                  borderRadius: BorderRadius.circular(18),
-                ),
-
-                child: Row(
-                  children: [
-                    Container(
-                      padding: EdgeInsets.all(12),
-
-                      decoration: BoxDecoration(
-                        color: Colors.white24,
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-
-                      child: Icon(
-                        Icons.account_balance_wallet,
-                        color: Colors.white,
-                      ),
-                    ),
-
-                    SizedBox(width: 15),
-
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-
-                        children: [
-                          Text(
-                            "Saldo disponible",
-                            style: TextStyle(
-                              color: Colors.white70,
-                              fontSize: 14,
-                            ),
-                          ),
-
-                          SizedBox(height: 4),
-
-                          Text(
-                            "${((currentUser['balance'] ?? 0) - (currentUser['heldBalance'] ?? currentUser['held_balance'] ?? 0)).toStringAsFixed(2)} €",
-
-                            style: TextStyle(
-                              color: Colors.white,
-                              fontSize: 24,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-
-                    Icon(
-                      Icons.arrow_forward_ios,
-                      color: Colors.white70,
-                      size: 18,
-                    ),
-                  ],
-                ),
               ),
             ),
           ),

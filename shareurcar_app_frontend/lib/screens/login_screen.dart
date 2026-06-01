@@ -73,7 +73,7 @@ class _LoginScreenState extends State<LoginScreen> {
             SizedBox(height: 20),
 
             Text(
-              "ShareUrCar 🚗",
+              "ShareUrCar",
               style: TextStyle(
                 color: Colors.white,
                 fontSize: 26,

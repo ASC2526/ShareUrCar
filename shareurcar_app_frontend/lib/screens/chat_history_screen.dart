@@ -26,12 +26,16 @@ class _ChatHistoryScreenState extends State<ChatHistoryScreen> {
     super.dispose();
   }
 
-  List get _chatsFiltrados {
-    List lista = List.from(widget.todosLosChats);
+  List<Map<String, dynamic>> get _chatsFiltrados {
+    final lista = widget.todosLosChats
+        .map((c) => Map<String, dynamic>.from(c as Map))
+        .toList();
+
+    List<Map<String, dynamic>> resultado = lista;
 
     if (_filtro.isNotEmpty) {
       final q = _filtro.toLowerCase();
-      lista = lista.where((c) {
+      resultado = lista.where((c) {
         final destino = (c['destination'] ?? '').toString().toLowerCase();
         final origin = (c['origin'] ?? '').toString().toLowerCase();
         final driver = (c['driverName'] ?? '').toString().toLowerCase();
@@ -43,17 +47,16 @@ class _ChatHistoryScreenState extends State<ChatHistoryScreen> {
       }).toList();
     }
 
-    lista.sort((a, b) {
+    resultado.sort((a, b) {
       switch (_ordenSeleccionado) {
         case 'conductor':
-          final dA = (a['driverName'] ?? '').toString().toLowerCase();
-          final dB = (b['driverName'] ?? '').toString().toLowerCase();
-          return dA.compareTo(dB);
+          return (a['driverName'] ?? '').toString().toLowerCase().compareTo(
+            (b['driverName'] ?? '').toString().toLowerCase(),
+          );
         case 'destino':
-          final dA = (a['destination'] ?? '').toString().toLowerCase();
-          final dB = (b['destination'] ?? '').toString().toLowerCase();
-          return dA.compareTo(dB);
-        case 'fecha':
+          return (a['destination'] ?? '').toString().toLowerCase().compareTo(
+            (b['destination'] ?? '').toString().toLowerCase(),
+          );
         default:
           final dA = a['travel_date']?.toString() ?? '';
           final dB = b['travel_date']?.toString() ?? '';
@@ -63,7 +66,7 @@ class _ChatHistoryScreenState extends State<ChatHistoryScreen> {
       }
     });
 
-    return lista;
+    return resultado;
   }
 
   String _fechaRelativa(String? fechaIso) {
