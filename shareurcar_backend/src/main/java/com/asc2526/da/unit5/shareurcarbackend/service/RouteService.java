@@ -320,7 +320,7 @@ public class RouteService {
         route.setAvailable_seats(route.getAvailable_seats() + 1);
         groupPassengerRepository.delete(gp);
         routeRepository.save(route);
-    }
+    } //
 
     // eliminar ruta para cuando el conductor cancela
     @Transactional
