@@ -54,7 +54,7 @@ class _MainNavigationState extends State<MainNavigation> {
           if (mounted) setState(() => _index = i);
         },
         selectedItemColor: kPrimary,
-        unselectedItemColor: Colors.grey,
+        unselectedItemColor: kSecondary,
         type: BottomNavigationBarType.fixed,
         items: const [
           BottomNavigationBarItem(icon: Icon(Icons.home), label: "Viajes"),

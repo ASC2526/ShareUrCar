@@ -67,7 +67,7 @@ class ApiService {
     _throw(res, "Error al actualizar el perfil");
   }
 
-  // NUEVO: subir foto en base64
+  // subir foto en base64
   static Future<String> uploadPhoto(int userId, String base64Photo) async {
     final res = await http.post(
       Uri.parse("$_base/users/$userId/photo"),

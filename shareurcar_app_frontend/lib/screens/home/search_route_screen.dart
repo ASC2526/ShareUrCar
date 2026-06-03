@@ -22,6 +22,10 @@ class _SearchRouteScreenState extends State<SearchRouteScreen> {
   final originController = TextEditingController();
   final destinationController = TextEditingController();
 
+  LatLng? _markerOrigen;
+  LatLng? _markerDestino;
+  final MapController _mapController = MapController();
+
   List<Map<String, dynamic>> originSuggestions = [];
   List<Map<String, dynamic>> destinationSuggestions = [];
 
@@ -1018,6 +1022,7 @@ class _SearchRouteScreenState extends State<SearchRouteScreen> {
           ),
           Expanded(
             child: FlutterMap(
+              mapController: _mapController,
               options: MapOptions(
                 initialCenter: LatLng(38.3452, -0.4810),
                 initialZoom: 13.0,
@@ -1030,6 +1035,32 @@ class _SearchRouteScreenState extends State<SearchRouteScreen> {
                   urlTemplate:
                       'https://api.mapbox.com/styles/v1/mapbox/streets-v12/tiles/256/{z}/{x}/{y}@2x?access_token={accessToken}',
                   additionalOptions: {'accessToken': ApiService.mapboxToken},
+                ),
+                MarkerLayer(
+                  markers: [
+                    if (_markerOrigen != null)
+                      Marker(
+                        point: _markerOrigen!,
+                        width: 40,
+                        height: 40,
+                        child: const Icon(
+                          Icons.circle,
+                          color: Colors.blue,
+                          size: 22,
+                        ),
+                      ),
+                    if (_markerDestino != null)
+                      Marker(
+                        point: _markerDestino!,
+                        width: 40,
+                        height: 40,
+                        child: const Icon(
+                          Icons.location_on,
+                          color: Colors.red,
+                          size: 36,
+                        ),
+                      ),
+                  ],
                 ),
               ],
             ),
@@ -1075,8 +1106,55 @@ class _SearchRouteScreenState extends State<SearchRouteScreen> {
           title: Text(list[idx]['name'], style: TextStyle(fontSize: 12)),
           onTap: () => setState(() {
             controller.text = list[idx]['name'];
-            onSelect(list[idx]['lat'], list[idx]['lng']);
+            final lat = list[idx]['lat'] as double;
+            final lng = list[idx]['lng'] as double;
+            onSelect(lat, lng);
             list.clear();
+
+            if (controller == originController) {
+              _markerOrigen = LatLng(lat, lng);
+            } else {
+              _markerDestino = LatLng(lat, lng);
+            }
+
+            if (_markerOrigen != null && _markerDestino != null) {
+              final bounds = LatLngBounds(
+                LatLng(
+                  [
+                        _markerOrigen!.latitude,
+                        _markerDestino!.latitude,
+                      ].reduce((a, b) => a < b ? a : b) -
+                      0.01,
+                  [
+                        _markerOrigen!.longitude,
+                        _markerDestino!.longitude,
+                      ].reduce((a, b) => a < b ? a : b) -
+                      0.01,
+                ),
+                LatLng(
+                  [
+                        _markerOrigen!.latitude,
+                        _markerDestino!.latitude,
+                      ].reduce((a, b) => a > b ? a : b) +
+                      0.01,
+                  [
+                        _markerOrigen!.longitude,
+                        _markerDestino!.longitude,
+                      ].reduce((a, b) => a > b ? a : b) +
+                      0.01,
+                ),
+              );
+              _mapController.fitCamera(
+                CameraFit.bounds(
+                  bounds: bounds,
+                  padding: const EdgeInsets.all(50),
+                ),
+              );
+            } else if (_markerOrigen != null) {
+              _mapController.move(_markerOrigen!, 14);
+            } else if (_markerDestino != null) {
+              _mapController.move(_markerDestino!, 14);
+            }
           }),
         ),
       ),
