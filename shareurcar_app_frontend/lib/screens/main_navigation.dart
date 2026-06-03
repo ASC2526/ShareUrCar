@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
-import 'package:shareurcar_app_frontend/screens/chat_screens.dart';
-import 'package:shareurcar_app_frontend/screens/payments_screen.dart';
-import 'package:shareurcar_app_frontend/screens/profile_screen.dart';
+import 'package:shareurcar_app_frontend/screens/chats/chat_screens.dart';
+import 'package:shareurcar_app_frontend/screens/payments/payments_screen.dart';
+import 'package:shareurcar_app_frontend/screens/profile/profile_screen.dart';
 import 'package:shareurcar_app_frontend/services/api_service.dart';
 import '../app_theme.dart';
-import 'home_screen.dart';
+import 'home/home_screen.dart';
 
 class MainNavigation extends StatefulWidget {
   final Map user;
